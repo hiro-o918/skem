@@ -17,31 +17,74 @@ pub fn schema() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
-    fn test_generate_schema_string_produces_valid_json() {
-        // Arrange
-        let expected_schema_1 = schema_for!(Config);
-
-        // Act
-        let schema_string = generate_schema_string().unwrap();
-
-        // Assert: Output should be valid JSON that matches the schema
-        let parsed_schema: serde_json::Value = serde_json::from_str(&schema_string).unwrap();
-        let expected_value = serde_json::to_value(&expected_schema_1).unwrap();
-        assert_eq!(parsed_schema, expected_value);
+    fn test_generate_schema_string_returns_correct_schema() {
+        let expected = r##"{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "description": "Structure of .skem.yaml configuration file",
+  "type": "object",
+  "required": [
+    "deps"
+  ],
+  "properties": {
+    "deps": {
+      "description": "List of dependencies",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Dependency"
+      }
     }
+  },
+  "definitions": {
+    "Dependency": {
+      "description": "Individual dependency definition",
+      "type": "object",
+      "required": [
+        "name",
+        "out",
+        "paths",
+        "repo",
+        "rev"
+      ],
+      "properties": {
+        "hooks": {
+          "description": "Commands to execute when changes are detected",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name of the dependency",
+          "type": "string"
+        },
+        "out": {
+          "description": "Output directory",
+          "type": "string"
+        },
+        "paths": {
+          "description": "List of paths to download",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "repo": {
+          "description": "Git repository URL",
+          "type": "string"
+        },
+        "rev": {
+          "description": "Branch, tag, or commit hash",
+          "type": "string"
+        }
+      }
+    }
+  }
+}"##;
 
-    #[test]
-    fn test_generate_schema_string_is_deterministic() {
-        // Arrange
-        let schema_string_1 = generate_schema_string().unwrap();
-
-        // Act
-        let schema_string_2 = generate_schema_string().unwrap();
-
-        // Assert: Multiple calls should produce identical output strings
-        assert_eq!(schema_string_1, schema_string_2);
+        let actual = super::generate_schema_string().unwrap();
+        assert_eq!(actual, expected);
     }
 }
