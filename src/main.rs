@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use skem::init;
 
 #[derive(Parser)]
 #[command(name = "skem")]
@@ -21,17 +22,22 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
-        Some(Commands::Init) => {
-            println!("Running init command (stub)");
-        }
+    let result = match cli.command {
+        Some(Commands::Init) => init::init(),
         Some(Commands::Schema) => {
             println!("Running schema command (stub)");
+            Ok(())
         }
         Some(Commands::Sync) | None => {
             // デフォルトコマンドとして sync を実行
             println!("Running sync command (stub)");
+            Ok(())
         }
+    };
+
+    if let Err(e) = result {
+        eprintln!("Error: {e}");
+        std::process::exit(1);
     }
 }
 
@@ -50,7 +56,7 @@ mod tests {
     fn test_default_is_sync() {
         // 引数なしの場合はSyncコマンドが実行されることを確認
         let cli = Cli::parse_from(vec!["skem"]);
-        assert!(matches!(cli.command, None));
+        assert!(cli.command.is_none());
     }
 
     #[test]

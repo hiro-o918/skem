@@ -1,0 +1,16 @@
+deps:
+  - name: proto-schemas
+    repo: "https://github.com/hiro-o918/skem.git"
+    rev: "main"
+    paths:
+      - "examples/schemas/proto/"
+    out: "./vendor/proto"
+    hooks:
+      - "echo 'Proto files updated'"
+
+  - name: openapi-schemas
+    repo: "https://github.com/hiro-o918/skem.git"
+    rev: "main"
+    paths:
+      - "examples/schemas/openapi/"
+    out: "./vendor/openapi"
