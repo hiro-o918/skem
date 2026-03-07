@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::init;
+use skem::{init, schema};
 
 #[derive(Parser)]
 #[command(name = "skem")]
@@ -24,10 +24,7 @@ fn main() {
 
     let result = match cli.command {
         Some(Commands::Init) => init::init(),
-        Some(Commands::Schema) => {
-            println!("Running schema command (stub)");
-            Ok(())
-        }
+        Some(Commands::Schema) => schema::schema(),
         Some(Commands::Sync) | None => {
             // デフォルトコマンドとして sync を実行
             println!("Running sync command (stub)");
