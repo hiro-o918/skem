@@ -1,0 +1,84 @@
+openapi: 3.0.0
+info:
+  title: Example API
+  description: Example API specification
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://staging-api.example.com
+    description: Staging server
+paths:
+  /users:
+    get:
+      summary: List all users
+      operationId: listUsers
+      parameters:
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: A paged array of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: Create a user
+      operationId: createUsers
+      requestBody:
+        description: User to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Null response
+  /users/{userId}:
+    get:
+      summary: Info for a specific user
+      operationId: showUserById
+      parameters:
+        - name: userId
+          in: path
+          description: The id of the user to retrieve
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: User ID
+        name:
+          type: string
+          description: User name
+        email:
+          type: string
+          description: User email address
+        created_at:
+          type: string
+          format: date-time
+          description: User creation timestamp
