@@ -9,6 +9,14 @@ repository = "https://github.com/hiro-o918/skem"
 keywords = ["cli", "git", "dependency", "sync"]
 categories = ["command-line-utilities", "development-tools"]
 
+[lib]
+name = "skem"
+path = "src/lib.rs"
+
+[[bin]]
+name = "skem"
+path = "src/main.rs"
+
 [dependencies]
 # 非同期ランタイム（軽量化のため rt と macros のみ）
 tokio = { version = "1.42", features = ["rt", "macros", "rt-multi-thread"] }
