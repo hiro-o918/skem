@@ -107,137 +107,110 @@ impl GitCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+
+    /// Repository URL for testing
+    const TEST_REPO: &str = "https://github.com/hiro-o918/skem.git";
 
     #[test]
     fn test_ls_remote_parses_sha() {
-        // This test requires a valid git repository to be available
-        // For now, we'll test with the git repo itself
-        let repo = "https://github.com/torvalds/linux.git";
-        let rev = "refs/heads/master";
+        // Query main branch to get a valid SHA
+        let result = GitCommand::ls_remote(TEST_REPO, "refs/heads/main");
 
-        let result = GitCommand::ls_remote(repo, rev);
-
-        // Should either succeed with a 40-char SHA (old format) or 64-char SHA (new format)
         match result {
             Ok(sha) => {
+                // Should be 40-char SHA (old format) or 64-char SHA (new format)
                 assert!(
                     sha.len() == 40 || sha.len() == 64,
-                    "SHA should be 40 or 64 chars"
+                    "SHA should be 40 or 64 chars, got: {sha}"
                 );
                 assert!(
                     sha.chars().all(|c| c.is_ascii_hexdigit()),
-                    "SHA should be hexadecimal"
+                    "SHA should be hexadecimal, got: {sha}"
                 );
             }
             Err(e) => {
-                // Network error is acceptable in test environment
-                eprintln!("Warning: ls_remote test skipped due to: {e}");
+                panic!("ls_remote should succeed for this repository: {e}");
             }
         }
     }
 
     #[test]
     fn test_ls_remote_with_invalid_ref() {
-        let repo = "https://github.com/torvalds/linux.git";
-        let rev = "refs/heads/nonexistent-branch-12345";
+        let result = GitCommand::ls_remote(TEST_REPO, "refs/heads/nonexistent-branch-xyz");
 
-        let result = GitCommand::ls_remote(repo, rev);
-
-        // Should return error or empty output, which would be caught
-        match result {
-            Ok(sha) => {
-                // Empty output case
-                assert!(sha.is_empty() || sha.len() >= 40);
-            }
-            Err(_) => {
-                // Expected to fail
-            }
-        }
+        // Should return error since the ref doesn't exist
+        assert!(result.is_err(), "ls_remote should fail for nonexistent ref");
     }
 
     #[test]
     fn test_clone_sparse_creates_directory() {
-        use std::fs;
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let clone_path = temp_dir.path().join("test_repo");
 
-        let repo = "https://github.com/torvalds/linux.git";
+        let result = GitCommand::clone_sparse(TEST_REPO, &clone_path);
 
-        let result = GitCommand::clone_sparse(repo, &clone_path);
-
-        match result {
-            Ok(_) => {
-                // Verify directory was created
-                assert!(clone_path.exists());
-                // Clean up
-                let _ = fs::remove_dir_all(&clone_path);
-            }
-            Err(e) => {
-                // Network error is acceptable in test environment
-                eprintln!("Warning: clone_sparse test skipped due to: {e}");
-            }
-        }
+        assert!(result.is_ok(), "clone_sparse should succeed: {result:?}");
+        assert!(clone_path.exists(), "Cloned directory should exist");
+        assert!(
+            clone_path.join(".git").exists(),
+            ".git directory should exist"
+        );
     }
 
     #[test]
     fn test_sparse_checkout_set_with_valid_paths() {
-        use std::fs;
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let repo_path = temp_dir.path().join("test_repo");
 
-        // First, clone a repository
-        let repo = "https://github.com/torvalds/linux.git";
-        if GitCommand::clone_sparse(repo, &repo_path).is_ok() {
-            let paths = vec!["Documentation/".to_string(), "README".to_string()];
-            let result = GitCommand::sparse_checkout_set(&repo_path, &paths);
+        // Clone the repository
+        let clone_result = GitCommand::clone_sparse(TEST_REPO, &repo_path);
+        assert!(clone_result.is_ok(), "clone should succeed");
 
-            match result {
-                Ok(_) => {
-                    // Verify sparse checkout was set up
-                    assert!(
-                        repo_path.join(".git/info/sparse-checkout").exists()
-                            || repo_path.join(".git").exists()
-                    );
-                }
-                Err(e) => {
-                    eprintln!("Warning: sparse_checkout_set test failed: {e}");
-                }
-            }
+        // Set sparse checkout paths (must be directories)
+        let paths = vec!["src/".to_string(), ".github/".to_string()];
+        let result = GitCommand::sparse_checkout_set(&repo_path, &paths);
 
-            // Clean up
-            let _ = fs::remove_dir_all(&repo_path);
-        }
+        assert!(
+            result.is_ok(),
+            "sparse_checkout_set should succeed: {result:?}"
+        );
+        assert!(
+            repo_path.join(".git/info/sparse-checkout").exists(),
+            "sparse-checkout file should exist"
+        );
     }
 
     #[test]
     fn test_checkout_valid_revision() {
-        use std::fs;
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let repo_path = temp_dir.path().join("test_repo");
 
-        // Clone a repository
-        let repo = "https://github.com/torvalds/linux.git";
-        if GitCommand::clone_sparse(repo, &repo_path).is_ok() {
-            // Try to checkout a valid revision
-            let result = GitCommand::checkout(&repo_path, "HEAD~1");
+        // Clone the repository
+        let clone_result = GitCommand::clone_sparse(TEST_REPO, &repo_path);
+        assert!(clone_result.is_ok(), "clone should succeed");
 
-            match result {
-                Ok(_) => {
-                    // Checkout succeeded
-                }
-                Err(e) => {
-                    eprintln!("Warning: checkout test failed: {e}");
-                }
-            }
+        // Checkout a valid revision
+        let result = GitCommand::checkout(&repo_path, "HEAD");
 
-            // Clean up
-            let _ = fs::remove_dir_all(&repo_path);
-        }
+        assert!(result.is_ok(), "checkout HEAD should succeed: {result:?}");
+    }
+
+    #[test]
+    fn test_checkout_invalid_revision() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo_path = temp_dir.path().join("test_repo");
+
+        // Clone the repository
+        let clone_result = GitCommand::clone_sparse(TEST_REPO, &repo_path);
+        assert!(clone_result.is_ok(), "clone should succeed");
+
+        // Try to checkout an invalid revision
+        let result = GitCommand::checkout(&repo_path, "nonexistent-revision-xyz");
+
+        assert!(
+            result.is_err(),
+            "checkout should fail for nonexistent revision"
+        );
     }
 }
