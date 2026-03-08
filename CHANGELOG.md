@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/hiro-o918/skem/compare/v0.2.0...v0.2.1) (2026-03-08)
+
+
+### Documentation
+
+* Reorganize README and move detailed docs to docs/ ([#33](https://github.com/hiro-o918/skem/issues/33)) ([2f55109](https://github.com/hiro-o918/skem/commit/2f55109571c82f29f4da6ef026284bfd34238899))
+
 ## [0.2.0](https://github.com/hiro-o918/skem/compare/v0.1.0...v0.2.0) (2026-03-08)
 
 
