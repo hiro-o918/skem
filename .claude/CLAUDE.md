@@ -5,6 +5,7 @@
 - **Code Comments**: Write all code comments in English since this is an OSS project
 - **Documentation**: Write all documentation (README, doc comments, etc.) in English
 - **Commit Messages**: Use English for commit messages following Conventional Commits format
+- **Pull Requests**: Write PR titles in English following Conventional Commits format, and descriptions in English
 - **Communication with User**: Use Japanese for communication with the user (as per global settings)
 
 ## Development Guidelines
