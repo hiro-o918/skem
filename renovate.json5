@@ -1,0 +1,37 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  lockFileMaintenance: {
+    enabled: true,
+  },
+  extends: ["config:base"],
+  enabledManagers: ["cargo", "github-actions"],
+  automerge: false,
+  packageRules: [
+    {
+      groupName: "rust patch dependencies",
+      matchManagers: ["cargo"],
+      matchUpdateTypes: ["patch"],
+      matchPackagePatterns: ["*"],
+      automerge: true,
+    },
+    {
+      groupName: "rust minor-major dependencies",
+      matchManagers: ["cargo"],
+      matchUpdateTypes: ["minor", "major"],
+      matchPackagePatterns: ["*"],
+    },
+    {
+      groupName: "github-actions patch dependencies",
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["patch"],
+      matchPackagePatterns: ["*"],
+      automerge: true,
+    },
+    {
+      groupName: "github-actions minor-major dependencies",
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "major"],
+      matchPackagePatterns: ["*"],
+    },
+  ],
+}
