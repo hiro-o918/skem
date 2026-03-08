@@ -1,9 +1,11 @@
+use crate::change_detection;
 use crate::config::{Config, Dependency};
 use crate::copy::copy_files;
 use crate::fetch::fetch_files;
 use crate::git::GitCommand;
 use crate::hooks::execute_hooks;
 use anyhow::Result;
+use std::fs;
 use std::path::Path;
 
 /// Synchronize a single dependency
@@ -74,6 +76,56 @@ pub async fn sync_dependencies(config: &Config) -> Result<Vec<(String, String)>>
     }
 
     Ok(results)
+}
+
+/// Run the full synchronization workflow
+///
+/// This function:
+/// 1. Reads and validates the .skem.yaml configuration
+/// 2. Reads the existing lockfile
+/// 3. Executes parallel synchronization of all dependencies
+/// 4. Updates and writes the lockfile
+pub fn run_sync() -> Result<()> {
+    let config_path = Path::new(".skem.yaml");
+    if !config_path.exists() {
+        anyhow::bail!(
+            ".skem.yaml not found. Run 'skem init' to create a sample configuration file."
+        );
+    }
+
+    let config_content = fs::read_to_string(config_path)?;
+    let config: Config = serde_yaml::from_str(&config_content)?;
+
+    if config.deps.is_empty() {
+        println!("No dependencies to synchronize.");
+        return Ok(());
+    }
+
+    println!("Synchronizing {} dependencies...", config.deps.len());
+
+    let lockfile_path = Path::new(".skem.lock");
+    let lockfile = change_detection::read_lockfile(lockfile_path)?;
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let sync_results = rt.block_on(async { sync_dependencies(&config).await })?;
+
+    println!(
+        "Successfully synchronized {} dependencies.",
+        sync_results.len()
+    );
+
+    let mut updated_lockfile = lockfile;
+    change_detection::update_lockfile_entries(
+        &mut updated_lockfile,
+        sync_results
+            .iter()
+            .map(|(name, sha)| (name.as_str(), sha.as_str())),
+    );
+
+    change_detection::write_lockfile(lockfile_path, &updated_lockfile)?;
+    println!("Lockfile updated: {}", lockfile_path.display());
+
+    Ok(())
 }
 
 #[cfg(test)]
