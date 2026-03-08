@@ -72,11 +72,19 @@ pub fn remove_lockfile_entry(lockfile: &Lockfile, name: &str) -> Lockfile {
 /// # Arguments
 /// * `lockfile` - Source lockfile
 /// * `name` - Dependency name
+/// * `repo` - Git repository URL
+/// * `rev` - Tracked ref
 /// * `sha` - New SHA to set
 ///
 /// # Returns
 /// New Lockfile with the specified entry updated or added
-pub fn update_lockfile_entry(lockfile: &Lockfile, name: &str, sha: &str) -> Lockfile {
+pub fn update_lockfile_entry(
+    lockfile: &Lockfile,
+    name: &str,
+    repo: &str,
+    rev: &str,
+    sha: &str,
+) -> Lockfile {
     let mut found = false;
     let mut locks: Vec<LockEntry> = lockfile
         .locks
@@ -86,6 +94,8 @@ pub fn update_lockfile_entry(lockfile: &Lockfile, name: &str, sha: &str) -> Lock
                 found = true;
                 LockEntry {
                     name: name.to_string(),
+                    repo: repo.to_string(),
+                    rev: rev.to_string(),
                     sha: sha.to_string(),
                 }
             } else {
@@ -97,6 +107,8 @@ pub fn update_lockfile_entry(lockfile: &Lockfile, name: &str, sha: &str) -> Lock
     if !found {
         locks.push(LockEntry {
             name: name.to_string(),
+            repo: repo.to_string(),
+            rev: rev.to_string(),
             sha: sha.to_string(),
         });
     }
@@ -108,18 +120,18 @@ pub fn update_lockfile_entry(lockfile: &Lockfile, name: &str, sha: &str) -> Lock
 ///
 /// # Arguments
 /// * `lockfile` - Source lockfile
-/// * `updates` - Iterator of (name, sha) tuples to update
+/// * `updates` - Iterator of (name, repo, rev, sha) tuples to update
 ///
 /// # Returns
 /// New Lockfile with all specified entries updated or added
 pub fn update_lockfile_entries<'a, I>(lockfile: &Lockfile, updates: I) -> Lockfile
 where
-    I: IntoIterator<Item = (&'a str, &'a str)>,
+    I: IntoIterator<Item = (&'a str, &'a str, &'a str, &'a str)>,
 {
     updates
         .into_iter()
-        .fold(lockfile.clone(), |acc, (name, sha)| {
-            update_lockfile_entry(&acc, name, sha)
+        .fold(lockfile.clone(), |acc, (name, repo, rev, sha)| {
+            update_lockfile_entry(&acc, name, repo, rev, sha)
         })
 }
 
@@ -138,8 +150,12 @@ mod tests {
         let yaml = r#"
 locks:
   - name: example-api
+    repo: "https://github.com/example/api.git"
+    rev: "main"
     sha: "abc123def456"
   - name: another-dep
+    repo: "https://github.com/example/dep.git"
+    rev: "v1.0"
     sha: "789ghi012jkl"
 "#;
         fs::write(&lockfile_path, yaml).unwrap();
@@ -152,10 +168,14 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "example-api".to_string(),
+                    repo: "https://github.com/example/api.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "abc123def456".to_string(),
                 },
                 LockEntry {
                     name: "another-dep".to_string(),
+                    repo: "https://github.com/example/dep.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "789ghi012jkl".to_string(),
                 },
             ],
@@ -187,10 +207,14 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],
@@ -215,6 +239,8 @@ locks:
         let initial_lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "old-dep".to_string(),
+                repo: "https://github.com/example/old.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
@@ -224,6 +250,8 @@ locks:
         let new_lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "new-dep".to_string(),
+                repo: "https://github.com/example/new.git".to_string(),
+                rev: "v2.0".to_string(),
                 sha: "new-sha".to_string(),
             }],
         };
@@ -252,6 +280,8 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing-dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
@@ -269,6 +299,8 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing-dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "current-sha".to_string(),
             }],
         };
@@ -287,14 +319,20 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
                 LockEntry {
                     name: "dep3".to_string(),
+                    repo: "https://github.com/example/dep3.git".to_string(),
+                    rev: "HEAD".to_string(),
                     sha: "sha3".to_string(),
                 },
             ],
@@ -312,12 +350,20 @@ locks:
         let lockfile = Lockfile { locks: vec![] };
 
         // Act: Update lockfile with new entry
-        let result = update_lockfile_entry(&lockfile, "new-dep", "sha123");
+        let result = update_lockfile_entry(
+            &lockfile,
+            "new-dep",
+            "https://github.com/example/new.git",
+            "main",
+            "sha123",
+        );
 
         // Assert: New entry should be added
         let expected = Lockfile {
             locks: vec![LockEntry {
                 name: "new-dep".to_string(),
+                repo: "https://github.com/example/new.git".to_string(),
+                rev: "main".to_string(),
                 sha: "sha123".to_string(),
             }],
         };
@@ -330,17 +376,27 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing-dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
 
         // Act: Update existing entry
-        let result = update_lockfile_entry(&lockfile, "existing-dep", "new-sha");
+        let result = update_lockfile_entry(
+            &lockfile,
+            "existing-dep",
+            "https://github.com/example/dep.git",
+            "main",
+            "new-sha",
+        );
 
         // Assert: Entry should be updated, length unchanged
         let expected = Lockfile {
             locks: vec![LockEntry {
                 name: "existing-dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "new-sha".to_string(),
             }],
         };
@@ -353,17 +409,27 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
 
         // Act: Update entry
-        let _ = update_lockfile_entry(&lockfile, "dep", "new-sha");
+        let _ = update_lockfile_entry(
+            &lockfile,
+            "dep",
+            "https://github.com/example/dep.git",
+            "main",
+            "new-sha",
+        );
 
         // Assert: Original lockfile should be unchanged
         let expected = Lockfile {
             locks: vec![LockEntry {
                 name: "dep".to_string(),
+                repo: "https://github.com/example/dep.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
@@ -377,27 +443,41 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],
         };
 
         // Act: Update one entry
-        let result = update_lockfile_entry(&lockfile, "dep1", "new-sha1");
+        let result = update_lockfile_entry(
+            &lockfile,
+            "dep1",
+            "https://github.com/example/dep1.git",
+            "main",
+            "new-sha1",
+        );
 
         // Assert: Only first entry should be updated
         let expected = Lockfile {
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "new-sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],
@@ -411,7 +491,26 @@ locks:
         let lockfile = Lockfile { locks: vec![] };
 
         // Act: Update multiple entries at once
-        let updates = vec![("dep1", "sha1"), ("dep2", "sha2"), ("dep3", "sha3")];
+        let updates = vec![
+            (
+                "dep1",
+                "https://github.com/example/dep1.git",
+                "main",
+                "sha1",
+            ),
+            (
+                "dep2",
+                "https://github.com/example/dep2.git",
+                "v1.0",
+                "sha2",
+            ),
+            (
+                "dep3",
+                "https://github.com/example/dep3.git",
+                "HEAD",
+                "sha3",
+            ),
+        ];
         let result = update_lockfile_entries(&lockfile, updates);
 
         // Assert: All entries should be added
@@ -419,14 +518,20 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
                 LockEntry {
                     name: "dep3".to_string(),
+                    repo: "https://github.com/example/dep3.git".to_string(),
+                    rev: "HEAD".to_string(),
                     sha: "sha3".to_string(),
                 },
             ],
@@ -440,15 +545,32 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing".to_string(),
+                repo: "https://github.com/example/existing.git".to_string(),
+                rev: "main".to_string(),
                 sha: "old-sha".to_string(),
             }],
         };
 
         // Act: Update existing and add new entries
         let updates = vec![
-            ("existing", "new-sha"),
-            ("new-dep1", "sha1"),
-            ("new-dep2", "sha2"),
+            (
+                "existing",
+                "https://github.com/example/existing.git",
+                "main",
+                "new-sha",
+            ),
+            (
+                "new-dep1",
+                "https://github.com/example/new1.git",
+                "v1.0",
+                "sha1",
+            ),
+            (
+                "new-dep2",
+                "https://github.com/example/new2.git",
+                "HEAD",
+                "sha2",
+            ),
         ];
         let result = update_lockfile_entries(&lockfile, updates);
 
@@ -457,14 +579,20 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "existing".to_string(),
+                    repo: "https://github.com/example/existing.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "new-sha".to_string(),
                 },
                 LockEntry {
                     name: "new-dep1".to_string(),
+                    repo: "https://github.com/example/new1.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "new-dep2".to_string(),
+                    repo: "https://github.com/example/new2.git".to_string(),
+                    rev: "HEAD".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],
@@ -478,10 +606,14 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],
@@ -491,6 +623,8 @@ locks:
         let expected = Lockfile {
             locks: vec![LockEntry {
                 name: "dep2".to_string(),
+                repo: "https://github.com/example/dep2.git".to_string(),
+                rev: "v1.0".to_string(),
                 sha: "sha2".to_string(),
             }],
         };
@@ -502,6 +636,8 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "dep1".to_string(),
+                repo: "https://github.com/example/dep1.git".to_string(),
+                rev: "main".to_string(),
                 sha: "sha1".to_string(),
             }],
         };
@@ -516,6 +652,8 @@ locks:
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "dep1".to_string(),
+                repo: "https://github.com/example/dep1.git".to_string(),
+                rev: "main".to_string(),
                 sha: "sha1".to_string(),
             }],
         };
@@ -525,6 +663,8 @@ locks:
         let expected = Lockfile {
             locks: vec![LockEntry {
                 name: "dep1".to_string(),
+                repo: "https://github.com/example/dep1.git".to_string(),
+                rev: "main".to_string(),
                 sha: "sha1".to_string(),
             }],
         };

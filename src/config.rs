@@ -42,6 +42,10 @@ pub struct Lockfile {
 pub struct LockEntry {
     /// Name of the dependency
     pub name: String,
+    /// Git repository URL
+    pub repo: String,
+    /// Tracked ref (defaults to "HEAD" when omitted in config)
+    pub rev: String,
     /// Resolved commit SHA
     pub sha: String,
 }
@@ -289,8 +293,12 @@ deps:
         let yaml = r#"
 locks:
   - name: example-api
+    repo: "https://github.com/example/api.git"
+    rev: "main"
     sha: "abc123def456"
   - name: another-dep
+    repo: "https://github.com/example/dep.git"
+    rev: "v1.0"
     sha: "789ghi012jkl"
 "#;
         let lockfile: Lockfile = serde_yaml::from_str(yaml).unwrap();
@@ -298,10 +306,14 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "example-api".to_string(),
+                    repo: "https://github.com/example/api.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "abc123def456".to_string(),
                 },
                 LockEntry {
                     name: "another-dep".to_string(),
+                    repo: "https://github.com/example/dep.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "789ghi012jkl".to_string(),
                 },
             ],
@@ -315,10 +327,14 @@ locks:
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "sha1".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "sha2".to_string(),
                 },
             ],

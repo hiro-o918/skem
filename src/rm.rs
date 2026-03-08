@@ -113,10 +113,14 @@ mod tests {
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
+                    repo: "https://github.com/example/dep1.git".to_string(),
+                    rev: "main".to_string(),
                     sha: "abc123".to_string(),
                 },
                 LockEntry {
                     name: "dep2".to_string(),
+                    repo: "https://github.com/example/dep2.git".to_string(),
+                    rev: "v1.0".to_string(),
                     sha: "def456".to_string(),
                 },
             ],
@@ -129,6 +133,8 @@ mod tests {
         let expected_lf = Lockfile {
             locks: vec![LockEntry {
                 name: "dep2".to_string(),
+                repo: "https://github.com/example/dep2.git".to_string(),
+                rev: "v1.0".to_string(),
                 sha: "def456".to_string(),
             }],
         };

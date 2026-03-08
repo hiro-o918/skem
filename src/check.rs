@@ -130,6 +130,8 @@ mod tests {
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "test".to_string(),
+                repo: "https://github.com/hiro-o918/skem.git".to_string(),
+                rev: "refs/heads/main".to_string(),
                 sha: current_sha,
             }],
         };
@@ -152,6 +154,8 @@ mod tests {
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "test".to_string(),
+                repo: "https://github.com/hiro-o918/skem.git".to_string(),
+                rev: "refs/heads/main".to_string(),
                 sha: "0000000000000000000000000000000000000000".to_string(),
             }],
         };

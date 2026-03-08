@@ -91,6 +91,8 @@ mod tests {
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "api".to_string(),
+                repo: "https://github.com/example/api.git".to_string(),
+                rev: "v2.0".to_string(),
                 sha: "abc123def456".to_string(),
             }],
         };
@@ -165,6 +167,8 @@ mod tests {
         let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "api".to_string(),
+                repo: "https://github.com/example/api.git".to_string(),
+                rev: "HEAD".to_string(),
                 sha: "abc123d".to_string(),
             }],
         };
