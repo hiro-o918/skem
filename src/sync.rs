@@ -114,9 +114,8 @@ pub fn run_sync() -> Result<()> {
         sync_results.len()
     );
 
-    let mut updated_lockfile = lockfile;
-    change_detection::update_lockfile_entries(
-        &mut updated_lockfile,
+    let updated_lockfile = change_detection::update_lockfile_entries(
+        &lockfile,
         sync_results
             .iter()
             .map(|(name, sha)| (name.as_str(), sha.as_str())),

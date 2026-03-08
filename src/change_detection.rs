@@ -48,37 +48,60 @@ pub fn has_changed(name: &str, current_sha: &str, lockfile: &Lockfile) -> bool {
         .is_none_or(|entry| entry.sha != current_sha)
 }
 
-/// Update a single dependency in the lockfile
+/// Create a new lockfile with a single dependency updated
 ///
 /// # Arguments
-/// * `lockfile` - Lockfile to update (mutable)
+/// * `lockfile` - Source lockfile
 /// * `name` - Dependency name
 /// * `sha` - New SHA to set
-pub fn update_lockfile_entry(lockfile: &mut Lockfile, name: &str, sha: &str) {
-    // Try to find and update existing entry
-    if let Some(entry) = lockfile.locks.iter_mut().find(|e| e.name == name) {
-        entry.sha = sha.to_string();
-    } else {
-        // Add new entry if not found
-        lockfile.locks.push(LockEntry {
+///
+/// # Returns
+/// New Lockfile with the specified entry updated or added
+pub fn update_lockfile_entry(lockfile: &Lockfile, name: &str, sha: &str) -> Lockfile {
+    let mut found = false;
+    let mut locks: Vec<LockEntry> = lockfile
+        .locks
+        .iter()
+        .map(|entry| {
+            if entry.name == name {
+                found = true;
+                LockEntry {
+                    name: name.to_string(),
+                    sha: sha.to_string(),
+                }
+            } else {
+                entry.clone()
+            }
+        })
+        .collect();
+
+    if !found {
+        locks.push(LockEntry {
             name: name.to_string(),
             sha: sha.to_string(),
         });
     }
+
+    Lockfile { locks }
 }
 
-/// Update multiple dependencies in the lockfile
+/// Create a new lockfile with multiple dependencies updated
 ///
 /// # Arguments
-/// * `lockfile` - Lockfile to update (mutable)
+/// * `lockfile` - Source lockfile
 /// * `updates` - Iterator of (name, sha) tuples to update
-pub fn update_lockfile_entries<'a, I>(lockfile: &mut Lockfile, updates: I)
+///
+/// # Returns
+/// New Lockfile with all specified entries updated or added
+pub fn update_lockfile_entries<'a, I>(lockfile: &Lockfile, updates: I) -> Lockfile
 where
     I: IntoIterator<Item = (&'a str, &'a str)>,
 {
-    for (name, sha) in updates {
-        update_lockfile_entry(lockfile, name, sha);
-    }
+    updates
+        .into_iter()
+        .fold(lockfile.clone(), |acc, (name, sha)| {
+            update_lockfile_entry(&acc, name, sha)
+        })
 }
 
 #[cfg(test)]
@@ -267,10 +290,10 @@ locks:
     #[test]
     fn test_update_lockfile_entry_adds_new_entry() {
         // Arrange: Empty lockfile
-        let mut lockfile = Lockfile { locks: vec![] };
+        let lockfile = Lockfile { locks: vec![] };
 
         // Act: Update lockfile with new entry
-        update_lockfile_entry(&mut lockfile, "new-dep", "sha123");
+        let result = update_lockfile_entry(&lockfile, "new-dep", "sha123");
 
         // Assert: New entry should be added
         let expected = Lockfile {
@@ -279,13 +302,13 @@ locks:
                 sha: "sha123".to_string(),
             }],
         };
-        assert_eq!(lockfile, expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_update_lockfile_entry_updates_existing_entry() {
         // Arrange: Lockfile with existing entry
-        let mut lockfile = Lockfile {
+        let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing-dep".to_string(),
                 sha: "old-sha".to_string(),
@@ -293,7 +316,7 @@ locks:
         };
 
         // Act: Update existing entry
-        update_lockfile_entry(&mut lockfile, "existing-dep", "new-sha");
+        let result = update_lockfile_entry(&lockfile, "existing-dep", "new-sha");
 
         // Assert: Entry should be updated, length unchanged
         let expected = Lockfile {
@@ -302,13 +325,36 @@ locks:
                 sha: "new-sha".to_string(),
             }],
         };
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_update_lockfile_entry_does_not_modify_original() {
+        // Arrange: Lockfile with existing entry
+        let lockfile = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep".to_string(),
+                sha: "old-sha".to_string(),
+            }],
+        };
+
+        // Act: Update entry
+        let _ = update_lockfile_entry(&lockfile, "dep", "new-sha");
+
+        // Assert: Original lockfile should be unchanged
+        let expected = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep".to_string(),
+                sha: "old-sha".to_string(),
+            }],
+        };
         assert_eq!(lockfile, expected);
     }
 
     #[test]
     fn test_update_lockfile_entry_multiple_entries() {
         // Arrange: Lockfile with multiple entries
-        let mut lockfile = Lockfile {
+        let lockfile = Lockfile {
             locks: vec![
                 LockEntry {
                     name: "dep1".to_string(),
@@ -322,7 +368,7 @@ locks:
         };
 
         // Act: Update one entry
-        update_lockfile_entry(&mut lockfile, "dep1", "new-sha1");
+        let result = update_lockfile_entry(&lockfile, "dep1", "new-sha1");
 
         // Assert: Only first entry should be updated
         let expected = Lockfile {
@@ -337,17 +383,17 @@ locks:
                 },
             ],
         };
-        assert_eq!(lockfile, expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_update_lockfile_entries_batch_update() {
         // Arrange: Empty lockfile
-        let mut lockfile = Lockfile { locks: vec![] };
+        let lockfile = Lockfile { locks: vec![] };
 
         // Act: Update multiple entries at once
         let updates = vec![("dep1", "sha1"), ("dep2", "sha2"), ("dep3", "sha3")];
-        update_lockfile_entries(&mut lockfile, updates);
+        let result = update_lockfile_entries(&lockfile, updates);
 
         // Assert: All entries should be added
         let expected = Lockfile {
@@ -366,13 +412,13 @@ locks:
                 },
             ],
         };
-        assert_eq!(lockfile, expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_update_lockfile_entries_mixed_add_and_update() {
         // Arrange: Lockfile with one entry
-        let mut lockfile = Lockfile {
+        let lockfile = Lockfile {
             locks: vec![LockEntry {
                 name: "existing".to_string(),
                 sha: "old-sha".to_string(),
@@ -385,7 +431,7 @@ locks:
             ("new-dep1", "sha1"),
             ("new-dep2", "sha2"),
         ];
-        update_lockfile_entries(&mut lockfile, updates);
+        let result = update_lockfile_entries(&lockfile, updates);
 
         // Assert: Should have updated existing and added new entries
         let expected = Lockfile {
@@ -404,6 +450,6 @@ locks:
                 },
             ],
         };
-        assert_eq!(lockfile, expected);
+        assert_eq!(result, expected);
     }
 }
