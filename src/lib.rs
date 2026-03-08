@@ -1,4 +1,5 @@
 pub mod add;
+pub mod check;
 pub mod config;
 pub mod copy;
 pub mod fetch;

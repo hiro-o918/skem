@@ -49,6 +49,9 @@ pub struct LockEntry {
 /// Default config file path
 pub const CONFIG_PATH: &str = ".skem.yaml";
 
+/// Default lockfile path
+pub const LOCKFILE_PATH: &str = ".skem.lock";
+
 /// Read config from the specified path
 ///
 /// # Arguments

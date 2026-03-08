@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, config, init, ls, rm, schema, sync};
+use skem::{add, check, config, init, ls, rm, schema, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -43,6 +43,8 @@ enum Commands {
     },
     /// List all dependencies
     Ls,
+    /// Check if any dependencies have updates available
+    Check,
 }
 
 fn main() {
@@ -68,6 +70,11 @@ fn main() {
         ),
         Some(Commands::Rm { name }) => rm::run_rm_default(&name),
         Some(Commands::Ls) => ls::run_ls_default(),
+        Some(Commands::Check) => match check::run_check_default() {
+            Ok(true) => Ok(()),
+            Ok(false) => std::process::exit(1),
+            Err(e) => Err(e),
+        },
     };
 
     if let Err(e) = result {
@@ -180,5 +187,11 @@ mod tests {
     fn test_ls_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "ls"]);
         assert!(matches!(cli.command, Some(Commands::Ls)));
+    }
+
+    #[test]
+    fn test_check_command_parsing() {
+        let cli = Cli::parse_from(vec!["skem", "check"]);
+        assert!(matches!(cli.command, Some(Commands::Check)));
     }
 }

@@ -3,9 +3,6 @@ use crate::lockfile;
 use anyhow::Result;
 use std::path::Path;
 
-/// Default lockfile path
-const LOCKFILE_PATH: &str = ".skem.lock";
-
 /// Format a single dependency for display
 ///
 /// # Arguments
@@ -69,7 +66,10 @@ pub fn run_ls(config_path: &Path, lockfile_path: &Path) -> Result<()> {
 
 /// Run ls with default paths
 pub fn run_ls_default() -> Result<()> {
-    run_ls(Path::new(config::CONFIG_PATH), Path::new(LOCKFILE_PATH))
+    run_ls(
+        Path::new(config::CONFIG_PATH),
+        Path::new(config::LOCKFILE_PATH),
+    )
 }
 
 #[cfg(test)]

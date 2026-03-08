@@ -3,9 +3,6 @@ use crate::lockfile;
 use anyhow::Result;
 use std::path::Path;
 
-/// Default lockfile path
-const LOCKFILE_PATH: &str = ".skem.lock";
-
 /// Remove a dependency from .skem.yaml and .skem.lock
 ///
 /// # Arguments
@@ -39,7 +36,7 @@ pub fn run_rm(config_path: &Path, lockfile_path: &Path, name: &str) -> Result<()
 pub fn run_rm_default(name: &str) -> Result<()> {
     run_rm(
         Path::new(config::CONFIG_PATH),
-        Path::new(LOCKFILE_PATH),
+        Path::new(config::LOCKFILE_PATH),
         name,
     )
 }

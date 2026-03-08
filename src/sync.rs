@@ -104,7 +104,7 @@ pub fn run_sync() -> Result<()> {
 
     println!("Synchronizing {} dependencies...", config.deps.len());
 
-    let lockfile_path = Path::new(".skem.lock");
+    let lockfile_path = Path::new(config::LOCKFILE_PATH);
     let current_lockfile = lockfile::read_lockfile(lockfile_path)?;
 
     let sync_results = sync_dependencies(&config, &current_lockfile)?;
