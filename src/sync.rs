@@ -1,11 +1,10 @@
-use crate::config::{Config, Dependency, Lockfile};
+use crate::config::{self, Config, Dependency, Lockfile};
 use crate::copy::copy_files;
 use crate::fetch::fetch_files;
 use crate::git::GitCommand;
 use crate::hooks::execute_hooks;
 use crate::lockfile;
 use anyhow::Result;
-use std::fs;
 use std::path::Path;
 
 /// Synchronize a single dependency
@@ -26,8 +25,9 @@ pub fn sync_single_dependency(
     dependency: &Dependency,
     current_lockfile: &Lockfile,
 ) -> Result<Option<(String, String)>> {
-    // Get latest SHA from remote
-    let sha = GitCommand::ls_remote(&dependency.repo, &dependency.rev)?;
+    // Get latest SHA from remote (default to HEAD when rev is omitted)
+    let rev = dependency.rev.as_deref().unwrap_or("HEAD");
+    let sha = GitCommand::ls_remote(&dependency.repo, rev)?;
 
     // Skip if unchanged
     if !lockfile::has_changed(&dependency.name, &sha, current_lockfile) {
@@ -94,15 +94,8 @@ pub fn sync_dependencies(
 /// 3. Executes parallel synchronization of all dependencies (skipping unchanged)
 /// 4. Updates and writes the lockfile
 pub fn run_sync() -> Result<()> {
-    let config_path = Path::new(".skem.yaml");
-    if !config_path.exists() {
-        anyhow::bail!(
-            ".skem.yaml not found. Run 'skem init' to create a sample configuration file."
-        );
-    }
-
-    let config_content = fs::read_to_string(config_path)?;
-    let config: Config = serde_yaml::from_str(&config_content)?;
+    let config_path = Path::new(config::CONFIG_PATH);
+    let config = config::read_config(config_path)?;
 
     if config.deps.is_empty() {
         println!("No dependencies to synchronize.");
@@ -111,7 +104,7 @@ pub fn run_sync() -> Result<()> {
 
     println!("Synchronizing {} dependencies...", config.deps.len());
 
-    let lockfile_path = Path::new(".skem.lock");
+    let lockfile_path = Path::new(config::LOCKFILE_PATH);
     let current_lockfile = lockfile::read_lockfile(lockfile_path)?;
 
     let sync_results = sync_dependencies(&config, &current_lockfile)?;
@@ -153,7 +146,8 @@ mod tests {
         let result = sync_dependencies(&config, &lockfile);
 
         // Assert: Should succeed with empty results
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 0);
+        let synced = result.unwrap();
+        let expected: Vec<(String, String)> = vec![];
+        assert_eq!(synced, expected);
     }
 }

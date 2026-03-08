@@ -48,6 +48,25 @@ pub fn has_changed(name: &str, current_sha: &str, lockfile: &Lockfile) -> bool {
         .is_none_or(|entry| entry.sha != current_sha)
 }
 
+/// Create a new lockfile with the specified dependency removed
+///
+/// # Arguments
+/// * `lockfile` - Source lockfile
+/// * `name` - Dependency name to remove
+///
+/// # Returns
+/// New Lockfile with the specified entry removed
+pub fn remove_lockfile_entry(lockfile: &Lockfile, name: &str) -> Lockfile {
+    Lockfile {
+        locks: lockfile
+            .locks
+            .iter()
+            .filter(|entry| entry.name != name)
+            .cloned()
+            .collect(),
+    }
+}
+
 /// Create a new lockfile with a single dependency updated
 ///
 /// # Arguments
@@ -451,5 +470,64 @@ locks:
             ],
         };
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_remove_lockfile_entry_existing() {
+        let lockfile = Lockfile {
+            locks: vec![
+                LockEntry {
+                    name: "dep1".to_string(),
+                    sha: "sha1".to_string(),
+                },
+                LockEntry {
+                    name: "dep2".to_string(),
+                    sha: "sha2".to_string(),
+                },
+            ],
+        };
+
+        let result = remove_lockfile_entry(&lockfile, "dep1");
+        let expected = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep2".to_string(),
+                sha: "sha2".to_string(),
+            }],
+        };
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_remove_lockfile_entry_nonexistent() {
+        let lockfile = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep1".to_string(),
+                sha: "sha1".to_string(),
+            }],
+        };
+
+        let result = remove_lockfile_entry(&lockfile, "nonexistent");
+        // Should remain unchanged
+        assert_eq!(result, lockfile);
+    }
+
+    #[test]
+    fn test_remove_lockfile_entry_does_not_modify_original() {
+        let lockfile = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep1".to_string(),
+                sha: "sha1".to_string(),
+            }],
+        };
+
+        let _ = remove_lockfile_entry(&lockfile, "dep1");
+        // Original should be unchanged
+        let expected = Lockfile {
+            locks: vec![LockEntry {
+                name: "dep1".to_string(),
+                sha: "sha1".to_string(),
+            }],
+        };
+        assert_eq!(lockfile, expected);
     }
 }

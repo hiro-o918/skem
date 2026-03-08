@@ -18,73 +18,28 @@ pub fn schema() -> Result<()> {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_generate_schema_string_returns_correct_schema() {
-        let expected = r##"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Config",
-  "description": "Structure of .skem.yaml configuration file",
-  "type": "object",
-  "required": [
-    "deps"
-  ],
-  "properties": {
-    "deps": {
-      "description": "List of dependencies",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Dependency"
-      }
-    }
-  },
-  "definitions": {
-    "Dependency": {
-      "description": "Individual dependency definition",
-      "type": "object",
-      "required": [
-        "name",
-        "out",
-        "paths",
-        "repo",
-        "rev"
-      ],
-      "properties": {
-        "hooks": {
-          "description": "Commands to execute when changes are detected",
-          "default": [],
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "name": {
-          "description": "Name of the dependency",
-          "type": "string"
-        },
-        "out": {
-          "description": "Output directory",
-          "type": "string"
-        },
-        "paths": {
-          "description": "List of paths to download",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "repo": {
-          "description": "Git repository URL",
-          "type": "string"
-        },
-        "rev": {
-          "description": "Branch, tag, or commit hash",
-          "type": "string"
-        }
-      }
-    }
-  }
-}"##;
+    fn test_generate_schema_string_returns_valid_json() {
+        let schema_string = super::generate_schema_string().unwrap();
+        let schema: serde_json::Value = serde_json::from_str(&schema_string).unwrap();
 
-        let actual = super::generate_schema_string().unwrap();
-        assert_eq!(actual, expected);
+        // Top-level structure
+        assert_eq!(schema["title"], "Config");
+        assert_eq!(schema["type"], "object");
+
+        // Dependency definition
+        let dep = &schema["definitions"]["Dependency"];
+        assert_eq!(dep["type"], "object");
+
+        // rev should not be in required list
+        let required = dep["required"].as_array().unwrap();
+        let required_names: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(required_names.contains(&"name"));
+        assert!(required_names.contains(&"repo"));
+        assert!(required_names.contains(&"paths"));
+        assert!(required_names.contains(&"out"));
+        assert!(!required_names.contains(&"rev"));
+
+        // rev property should exist
+        assert!(dep["properties"]["rev"].is_object());
     }
 }

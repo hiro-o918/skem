@@ -47,7 +47,7 @@ mod tests {
         let dep = Dependency {
             name: "test-dep".to_string(),
             repo: TEST_REPO.to_string(),
-            rev: "main".to_string(),
+            rev: Some("main".to_string()),
             paths: vec!["src/".to_string()],
             out: "./vendor/test".to_string(),
             hooks: vec![],
@@ -76,7 +76,7 @@ mod tests {
         let dep = Dependency {
             name: "test-dep".to_string(),
             repo: TEST_REPO.to_string(),
-            rev: "main".to_string(),
+            rev: Some("main".to_string()),
             paths: vec!["src/".to_string(), ".github/".to_string()],
             out: "./vendor/test".to_string(),
             hooks: vec![],
@@ -106,7 +106,7 @@ mod tests {
         let dep = Dependency {
             name: "test-dep".to_string(),
             repo: TEST_REPO.to_string(),
-            rev: "main".to_string(),
+            rev: Some("main".to_string()),
             paths: vec!["src/".to_string()],
             out: "./vendor/test".to_string(),
             hooks: vec![],
@@ -139,7 +139,7 @@ mod tests {
         let dep = Dependency {
             name: "test-dep".to_string(),
             repo: TEST_REPO.to_string(),
-            rev: "main".to_string(),
+            rev: Some("main".to_string()),
             paths: vec!["src/".to_string()],
             out: "./vendor/test".to_string(),
             hooks: vec![],
