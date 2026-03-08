@@ -22,8 +22,8 @@ curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | ba
 You can also specify a version or install directory:
 
 ```bash
-VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | bash
-INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | VERSION=v0.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | INSTALL_DIR=~/.local/bin bash
 ```
 
 ### From source
