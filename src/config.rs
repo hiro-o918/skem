@@ -1,5 +1,8 @@
+use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 /// Structure of .skem.yaml configuration file
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -43,9 +46,128 @@ pub struct LockEntry {
     pub sha: String,
 }
 
+/// Default config file path
+pub const CONFIG_PATH: &str = ".skem.yaml";
+
+/// Read config from the specified path
+///
+/// # Arguments
+/// * `path` - Path to the config file
+///
+/// # Returns
+/// Parsed Config
+pub fn read_config(path: &Path) -> Result<Config> {
+    if !path.exists() {
+        anyhow::bail!(
+            "{} not found. Run 'skem init' to create a sample configuration file.",
+            path.display()
+        );
+    }
+    let content = fs::read_to_string(path)?;
+    let config: Config = serde_yaml::from_str(&content)?;
+    Ok(config)
+}
+
+/// Write config to the specified path
+///
+/// # Arguments
+/// * `path` - Path to the config file
+/// * `config` - Config to write
+pub fn write_config(path: &Path, config: &Config) -> Result<()> {
+    let content = serde_yaml::to_string(config)?;
+    fs::write(path, content)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_read_config_from_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".skem.yaml");
+
+        let yaml = r#"
+deps:
+  - name: test-dep
+    repo: "https://github.com/test/repo.git"
+    rev: "main"
+    paths:
+      - "src/"
+    out: "./vendor/test"
+"#;
+        fs::write(&config_path, yaml).unwrap();
+
+        let config = read_config(&config_path).unwrap();
+        let expected = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["src/".to_string()],
+                out: "./vendor/test".to_string(),
+                hooks: vec![],
+            }],
+        };
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_read_config_file_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".skem.yaml");
+
+        let result = read_config(&config_path);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("not found"));
+    }
+
+    #[test]
+    fn test_write_config_creates_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".skem.yaml");
+
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["src/".to_string()],
+                out: "./vendor/test".to_string(),
+                hooks: vec![],
+            }],
+        };
+
+        write_config(&config_path, &config).unwrap();
+        assert!(config_path.exists());
+
+        let read_back = read_config(&config_path).unwrap();
+        assert_eq!(read_back, config);
+    }
+
+    #[test]
+    fn test_write_config_roundtrip_without_rev() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".skem.yaml");
+
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: None,
+                paths: vec!["src/".to_string()],
+                out: "./vendor/test".to_string(),
+                hooks: vec![],
+            }],
+        };
+
+        write_config(&config_path, &config).unwrap();
+        let read_back = read_config(&config_path).unwrap();
+        assert_eq!(read_back, config);
+    }
 
     #[test]
     fn test_config_deserialize() {
