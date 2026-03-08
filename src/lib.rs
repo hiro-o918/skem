@@ -6,3 +6,4 @@ pub mod git;
 pub mod hooks;
 pub mod init;
 pub mod schema;
+pub mod sync;
