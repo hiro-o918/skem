@@ -20,11 +20,11 @@ use std::path::Path;
 /// * `current_lockfile` - Current lockfile to check for changes
 ///
 /// # Returns
-/// Some((dependency_name, new_sha)) if synced, None if skipped
+/// Some((name, repo, rev, sha)) if synced, None if skipped
 pub fn sync_single_dependency(
     dependency: &Dependency,
     current_lockfile: &Lockfile,
-) -> Result<Option<(String, String)>> {
+) -> Result<Option<(String, String, String, String)>> {
     // Get latest SHA from remote (default to HEAD when rev is omitted)
     let rev = dependency.rev.as_deref().unwrap_or("HEAD");
     let sha = GitCommand::ls_remote(&dependency.repo, rev)?;
@@ -50,7 +50,12 @@ pub fn sync_single_dependency(
         execute_hooks(&dependency.hooks)?;
     }
 
-    Ok(Some((dependency.name.clone(), sha)))
+    Ok(Some((
+        dependency.name.clone(),
+        dependency.repo.clone(),
+        rev.to_string(),
+        sha,
+    )))
 }
 
 /// Synchronize all dependencies in parallel
@@ -63,11 +68,11 @@ pub fn sync_single_dependency(
 /// * `current_lockfile` - Current lockfile to check for changes
 ///
 /// # Returns
-/// Vector of (dependency_name, new_sha) tuples for synchronized (changed) dependencies
+/// Vector of (name, repo, rev, sha) tuples for synchronized (changed) dependencies
 pub fn sync_dependencies(
     config: &Config,
     current_lockfile: &Lockfile,
-) -> Result<Vec<(String, String)>> {
+) -> Result<Vec<(String, String, String, String)>> {
     let handles: Vec<_> = config
         .deps
         .iter()
@@ -78,7 +83,7 @@ pub fn sync_dependencies(
         })
         .collect();
 
-    let results: Vec<Option<(String, String)>> = handles
+    let results: Vec<Option<(String, String, String, String)>> = handles
         .into_iter()
         .map(|h| h.join().map_err(|_| anyhow::anyhow!("Thread panicked"))?)
         .collect::<Result<_>>()?;
@@ -121,9 +126,9 @@ pub fn run_sync() -> Result<()> {
 
     let updated_lockfile = lockfile::update_lockfile_entries(
         &current_lockfile,
-        sync_results
-            .iter()
-            .map(|(name, sha)| (name.as_str(), sha.as_str())),
+        sync_results.iter().map(|(name, repo, rev, sha)| {
+            (name.as_str(), repo.as_str(), rev.as_str(), sha.as_str())
+        }),
     );
 
     lockfile::write_lockfile(lockfile_path, &updated_lockfile)?;
@@ -147,7 +152,7 @@ mod tests {
 
         // Assert: Should succeed with empty results
         let synced = result.unwrap();
-        let expected: Vec<(String, String)> = vec![];
+        let expected: Vec<(String, String, String, String)> = vec![];
         assert_eq!(synced, expected);
     }
 }
