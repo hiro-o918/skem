@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, config, init, rm, schema, sync};
+use skem::{add, config, init, ls, rm, schema, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -41,6 +41,8 @@ enum Commands {
         /// Name of the dependency to remove
         name: String,
     },
+    /// List all dependencies
+    Ls,
 }
 
 fn main() {
@@ -65,6 +67,7 @@ fn main() {
             rev.as_deref(),
         ),
         Some(Commands::Rm { name }) => rm::run_rm_default(&name),
+        Some(Commands::Ls) => ls::run_ls_default(),
     };
 
     if let Err(e) = result {
@@ -171,5 +174,11 @@ mod tests {
             }
             _ => panic!("Expected Rm command"),
         }
+    }
+
+    #[test]
+    fn test_ls_command_parsing() {
+        let cli = Cli::parse_from(vec!["skem", "ls"]);
+        assert!(matches!(cli.command, Some(Commands::Ls)));
     }
 }
