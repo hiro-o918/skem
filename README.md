@@ -132,8 +132,8 @@ post_hooks:
 
 ## License
 
-MIT OR Apache-2.0
+MIT
 
 ## Author
 
-Hironori Yamamoto <hiro.o918@gmail.com>
+Hironori Yamamoto

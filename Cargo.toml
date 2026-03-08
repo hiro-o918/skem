@@ -2,9 +2,9 @@
 name = "skem"
 version = "0.1.0"
 edition = "2021"
-authors = ["Hironori Yamamoto <hiro.o918@gmail.com>"]
+authors = ["Hironori Yamamoto"]
 description = "A lightweight CLI tool to download specific files from remote Git repositories"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/hiro-o918/skem"
 keywords = ["cli", "git", "dependency", "sync"]
 categories = ["command-line-utilities", "development-tools"]
