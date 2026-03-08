@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
-use skem::{init, schema, sync};
+use skem::{add, config, init, schema, sync};
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "skem")]
@@ -17,6 +18,24 @@ enum Commands {
     Schema,
     /// Synchronize dependencies (default command)
     Sync,
+    /// Add a new dependency
+    Add {
+        /// Git repository URL
+        #[arg(long)]
+        repo: String,
+        /// Paths to download from the repository
+        #[arg(long, num_args = 1..)]
+        paths: Vec<String>,
+        /// Output directory
+        #[arg(long)]
+        out: String,
+        /// Dependency name (defaults to repository name)
+        #[arg(long)]
+        name: Option<String>,
+        /// Branch, tag, or commit hash (defaults to HEAD)
+        #[arg(long)]
+        rev: Option<String>,
+    },
 }
 
 fn main() {
@@ -26,6 +45,20 @@ fn main() {
         Some(Commands::Init) => init::init(),
         Some(Commands::Schema) => schema::schema(),
         Some(Commands::Sync) | None => sync::run_sync(),
+        Some(Commands::Add {
+            repo,
+            paths,
+            out,
+            name,
+            rev,
+        }) => add::run_add(
+            Path::new(config::CONFIG_PATH),
+            &repo,
+            paths,
+            &out,
+            name.as_deref(),
+            rev.as_deref(),
+        ),
     };
 
     if let Err(e) = result {
@@ -71,5 +104,55 @@ mod tests {
         // syncコマンドのパース確認
         let cli = Cli::parse_from(vec!["skem", "sync"]);
         assert!(matches!(cli.command, Some(Commands::Sync)));
+    }
+
+    #[test]
+    fn test_add_command_parsing() {
+        let cli = Cli::parse_from(vec![
+            "skem",
+            "add",
+            "--repo",
+            "https://github.com/example/api.git",
+            "--paths",
+            "proto/",
+            "--out",
+            "./vendor/api",
+        ]);
+        assert!(matches!(cli.command, Some(Commands::Add { .. })));
+    }
+
+    #[test]
+    fn test_add_command_parsing_with_all_options() {
+        let cli = Cli::parse_from(vec![
+            "skem",
+            "add",
+            "--repo",
+            "https://github.com/example/api.git",
+            "--paths",
+            "proto/",
+            "openapi/",
+            "--out",
+            "./vendor/api",
+            "--name",
+            "my-api",
+            "--rev",
+            "v2.0",
+        ]);
+        match cli.command {
+            Some(Commands::Add {
+                repo,
+                paths,
+                out,
+                name,
+                rev,
+            }) => {
+                assert_eq!(repo, "https://github.com/example/api.git");
+                assert_eq!(paths, vec!["proto/", "openapi/"]);
+                assert_eq!(out, "./vendor/api");
+                assert_eq!(name, Some("my-api".to_string()));
+                assert_eq!(rev, Some("v2.0".to_string()));
+            }
+            _ => panic!("Expected Add command"),
+        }
     }
 }
