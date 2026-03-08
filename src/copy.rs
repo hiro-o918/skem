@@ -241,8 +241,8 @@ mod tests {
         // Assert: File should be copied with stripped path, returns copied file paths
         assert!(result.is_ok(), "copy_files should succeed");
         let copied_files = result.unwrap();
-        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
-        assert_eq!(copied_files[0], out_dir.path().join("user.proto"));
+        let expected = vec![out_dir.path().join("user.proto")];
+        assert_eq!(copied_files, expected);
         assert!(
             out_dir.path().join("user.proto").exists(),
             "user.proto should be copied to output directory"
@@ -270,11 +270,8 @@ mod tests {
         // Assert: File should be copied preserving structure after stripped prefix
         assert!(result.is_ok(), "copy_files should succeed");
         let copied_files = result.unwrap();
-        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
-        assert_eq!(
-            copied_files[0],
-            out_dir.path().join("services/auth/user.proto")
-        );
+        let expected = vec![out_dir.path().join("services/auth/user.proto")];
+        assert_eq!(copied_files, expected);
     }
 
     #[test]
@@ -295,7 +292,6 @@ mod tests {
         // Assert: All files should be copied
         assert!(result.is_ok(), "copy_files should succeed");
         let mut copied_files = result.unwrap();
-        assert_eq!(copied_files.len(), 2, "Should copy exactly 2 files");
         copied_files.sort();
         let mut expected = vec![
             out_dir.path().join("post.proto"),
@@ -322,8 +318,8 @@ mod tests {
         // Assert: Parent directories should be created automatically
         assert!(result.is_ok(), "copy_files should succeed");
         let copied_files = result.unwrap();
-        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
-        assert_eq!(copied_files[0], out_dir.path().join("a/b/c/deep.proto"));
+        let expected = vec![out_dir.path().join("a/b/c/deep.proto")];
+        assert_eq!(copied_files, expected);
     }
 
     #[test]
@@ -371,11 +367,6 @@ mod tests {
         // Assert: Files from both paths should be copied
         assert!(result.is_ok(), "copy_files should succeed");
         let mut copied_files = result.unwrap();
-        assert_eq!(
-            copied_files.len(),
-            2,
-            "Should copy 2 files from different paths"
-        );
         copied_files.sort();
         let mut expected = vec![
             out_dir.path().join("post.proto"),
