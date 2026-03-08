@@ -13,6 +13,21 @@ A lightweight CLI tool to download specific files from remote Git repositories a
 
 ## Installation
 
+### Install script (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | bash
+```
+
+You can also specify a version or install directory:
+
+```bash
+VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | bash
+INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/hiro-o918/skem/main/install.sh | bash
+```
+
+### From source
+
 ```bash
 cargo install skem
 ```
