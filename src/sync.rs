@@ -1,9 +1,9 @@
-use crate::change_detection;
-use crate::config::{Config, Dependency};
+use crate::config::{Config, Dependency, Lockfile};
 use crate::copy::copy_files;
 use crate::fetch::fetch_files;
 use crate::git::GitCommand;
 use crate::hooks::execute_hooks;
+use crate::lockfile;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -12,18 +12,28 @@ use std::path::Path;
 ///
 /// This function:
 /// 1. Gets the latest commit SHA from git ls-remote
-/// 2. Fetches files from the remote repository
-/// 3. Copies files to the output directory
-/// 4. Executes hooks if configured
+/// 2. Checks if the dependency has changed since the last sync
+/// 3. If changed: fetches files, copies to output, and executes hooks
+/// 4. If unchanged: skips synchronization
 ///
 /// # Arguments
 /// * `dependency` - The dependency to synchronize
+/// * `current_lockfile` - Current lockfile to check for changes
 ///
 /// # Returns
-/// Tuple of (dependency_name, new_sha) on success
-pub fn sync_single_dependency(dependency: &Dependency) -> Result<(String, String)> {
+/// Some((dependency_name, new_sha)) if synced, None if skipped
+pub fn sync_single_dependency(
+    dependency: &Dependency,
+    current_lockfile: &Lockfile,
+) -> Result<Option<(String, String)>> {
     // Get latest SHA from remote
     let sha = GitCommand::ls_remote(&dependency.repo, &dependency.rev)?;
+
+    // Skip if unchanged
+    if !lockfile::has_changed(&dependency.name, &sha, current_lockfile) {
+        println!("  {} is up to date, skipping.", dependency.name);
+        return Ok(None);
+    }
 
     // Fetch files from remote repository
     let temp_dir = fetch_files(dependency, &sha)?;
@@ -40,7 +50,7 @@ pub fn sync_single_dependency(dependency: &Dependency) -> Result<(String, String
         execute_hooks(&dependency.hooks)?;
     }
 
-    Ok((dependency.name.clone(), sha))
+    Ok(Some((dependency.name.clone(), sha)))
 }
 
 /// Synchronize all dependencies in parallel
@@ -50,23 +60,30 @@ pub fn sync_single_dependency(dependency: &Dependency) -> Result<(String, String
 ///
 /// # Arguments
 /// * `config` - Configuration containing all dependencies
+/// * `current_lockfile` - Current lockfile to check for changes
 ///
 /// # Returns
-/// Vector of (dependency_name, new_sha) tuples for successfully synchronized dependencies
-pub fn sync_dependencies(config: &Config) -> Result<Vec<(String, String)>> {
+/// Vector of (dependency_name, new_sha) tuples for synchronized (changed) dependencies
+pub fn sync_dependencies(
+    config: &Config,
+    current_lockfile: &Lockfile,
+) -> Result<Vec<(String, String)>> {
     let handles: Vec<_> = config
         .deps
         .iter()
         .map(|dep| {
             let dep = dep.clone();
-            std::thread::spawn(move || sync_single_dependency(&dep))
+            let lf = current_lockfile.clone();
+            std::thread::spawn(move || sync_single_dependency(&dep, &lf))
         })
         .collect();
 
-    handles
+    let results: Vec<Option<(String, String)>> = handles
         .into_iter()
         .map(|h| h.join().map_err(|_| anyhow::anyhow!("Thread panicked"))?)
-        .collect()
+        .collect::<Result<_>>()?;
+
+    Ok(results.into_iter().flatten().collect())
 }
 
 /// Run the full synchronization workflow
@@ -74,7 +91,7 @@ pub fn sync_dependencies(config: &Config) -> Result<Vec<(String, String)>> {
 /// This function:
 /// 1. Reads and validates the .skem.yaml configuration
 /// 2. Reads the existing lockfile
-/// 3. Executes parallel synchronization of all dependencies
+/// 3. Executes parallel synchronization of all dependencies (skipping unchanged)
 /// 4. Updates and writes the lockfile
 pub fn run_sync() -> Result<()> {
     let config_path = Path::new(".skem.yaml");
@@ -95,23 +112,28 @@ pub fn run_sync() -> Result<()> {
     println!("Synchronizing {} dependencies...", config.deps.len());
 
     let lockfile_path = Path::new(".skem.lock");
-    let lockfile = change_detection::read_lockfile(lockfile_path)?;
+    let current_lockfile = lockfile::read_lockfile(lockfile_path)?;
 
-    let sync_results = sync_dependencies(&config)?;
+    let sync_results = sync_dependencies(&config, &current_lockfile)?;
+
+    if sync_results.is_empty() {
+        println!("All dependencies are up to date.");
+        return Ok(());
+    }
 
     println!(
         "Successfully synchronized {} dependencies.",
         sync_results.len()
     );
 
-    let updated_lockfile = change_detection::update_lockfile_entries(
-        &lockfile,
+    let updated_lockfile = lockfile::update_lockfile_entries(
+        &current_lockfile,
         sync_results
             .iter()
             .map(|(name, sha)| (name.as_str(), sha.as_str())),
     );
 
-    change_detection::write_lockfile(lockfile_path, &updated_lockfile)?;
+    lockfile::write_lockfile(lockfile_path, &updated_lockfile)?;
     println!("Lockfile updated: {}", lockfile_path.display());
 
     Ok(())
@@ -123,11 +145,12 @@ mod tests {
 
     #[test]
     fn test_sync_dependencies_empty_config() {
-        // Arrange: Empty config
+        // Arrange: Empty config and lockfile
         let config = Config { deps: vec![] };
+        let lockfile = Lockfile { locks: vec![] };
 
         // Act: Synchronize dependencies
-        let result = sync_dependencies(&config);
+        let result = sync_dependencies(&config, &lockfile);
 
         // Assert: Should succeed with empty results
         assert!(result.is_ok());

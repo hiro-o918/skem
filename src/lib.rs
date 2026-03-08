@@ -1,9 +1,9 @@
-pub mod change_detection;
 pub mod config;
 pub mod copy;
 pub mod fetch;
 pub mod git;
 pub mod hooks;
 pub mod init;
+pub mod lockfile;
 pub mod schema;
 pub mod sync;
