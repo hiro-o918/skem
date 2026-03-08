@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/hiro-o918/skem/compare/v0.2.1...v0.3.0) (2026-03-08)
+
+
+### Features
+
+* Add --force and --hooks-only options to sync command ([#35](https://github.com/hiro-o918/skem/issues/35)) ([3e6be1b](https://github.com/hiro-o918/skem/commit/3e6be1ba26270d9122ba6f898d162a569f744ca4))
+
 ## [0.2.1](https://github.com/hiro-o918/skem/compare/v0.2.0...v0.2.1) (2026-03-08)
 
 
