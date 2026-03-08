@@ -45,7 +45,7 @@ pub fn sync_single_dependency(dependency: &Dependency) -> Result<(String, String
 
 /// Synchronize all dependencies in parallel
 ///
-/// This function spawns a tokio task for each dependency and waits for all to complete.
+/// This function spawns a thread for each dependency and waits for all to complete.
 /// If any dependency fails, the entire operation fails with the first error.
 ///
 /// # Arguments
@@ -53,29 +53,20 @@ pub fn sync_single_dependency(dependency: &Dependency) -> Result<(String, String
 ///
 /// # Returns
 /// Vector of (dependency_name, new_sha) tuples for successfully synchronized dependencies
-pub async fn sync_dependencies(config: &Config) -> Result<Vec<(String, String)>> {
-    let mut tasks = vec![];
+pub fn sync_dependencies(config: &Config) -> Result<Vec<(String, String)>> {
+    let handles: Vec<_> = config
+        .deps
+        .iter()
+        .map(|dep| {
+            let dep = dep.clone();
+            std::thread::spawn(move || sync_single_dependency(&dep))
+        })
+        .collect();
 
-    for dep in &config.deps {
-        let dep = dep.clone();
-
-        // Spawn blocking task for synchronization
-        let task = tokio::task::spawn_blocking(move || sync_single_dependency(&dep));
-
-        tasks.push(task);
-    }
-
-    // Wait for all tasks to complete and collect results
-    let mut results = vec![];
-    for task in tasks {
-        match task.await {
-            Ok(Ok((name, sha))) => results.push((name, sha)),
-            Ok(Err(e)) => return Err(e),
-            Err(e) => return Err(anyhow::anyhow!("Task join error: {e}")),
-        }
-    }
-
-    Ok(results)
+    handles
+        .into_iter()
+        .map(|h| h.join().map_err(|_| anyhow::anyhow!("Thread panicked"))?)
+        .collect()
 }
 
 /// Run the full synchronization workflow
@@ -106,8 +97,7 @@ pub fn run_sync() -> Result<()> {
     let lockfile_path = Path::new(".skem.lock");
     let lockfile = change_detection::read_lockfile(lockfile_path)?;
 
-    let rt = tokio::runtime::Runtime::new()?;
-    let sync_results = rt.block_on(async { sync_dependencies(&config).await })?;
+    let sync_results = sync_dependencies(&config)?;
 
     println!(
         "Successfully synchronized {} dependencies.",
@@ -131,13 +121,13 @@ pub fn run_sync() -> Result<()> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_sync_dependencies_empty_config() {
+    #[test]
+    fn test_sync_dependencies_empty_config() {
         // Arrange: Empty config
         let config = Config { deps: vec![] };
 
         // Act: Synchronize dependencies
-        let result = sync_dependencies(&config).await;
+        let result = sync_dependencies(&config);
 
         // Assert: Should succeed with empty results
         assert!(result.is_ok());
