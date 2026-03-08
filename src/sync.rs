@@ -8,6 +8,18 @@ use crate::validate::validate_config;
 use anyhow::Result;
 use std::path::Path;
 
+/// Validate that copy_files copied at least one file
+///
+/// Returns an error if no files were matched, indicating a possible misconfiguration.
+fn validate_copied_count(count: usize, dep_name: &str, dep_paths: &[String]) -> Result<()> {
+    if count == 0 {
+        anyhow::bail!(
+            "No files matched paths {dep_paths:?} for dependency '{dep_name}'. Check your paths configuration.",
+        );
+    }
+    Ok(())
+}
+
 /// Synchronize a single dependency
 ///
 /// This function:
@@ -40,11 +52,12 @@ pub fn sync_single_dependency(
     let temp_dir = fetch_files(dependency, &sha)?;
 
     // Copy files to output directory
-    copy_files(
+    let copied_count = copy_files(
         temp_dir.path(),
         &dependency.paths,
         Path::new(&dependency.out),
     )?;
+    validate_copied_count(copied_count, &dependency.name, &dependency.paths)?;
 
     // Execute hooks if configured
     if !dependency.hooks.is_empty() {
@@ -159,5 +172,53 @@ mod tests {
         let synced = result.unwrap();
         let expected: Vec<(String, String, String, String)> = vec![];
         assert_eq!(synced, expected);
+    }
+
+    #[test]
+    fn test_validate_copied_count_with_files_copied() {
+        // Arrange: 1 file was copied
+        let dep_name = "my-dep";
+        let dep_paths = vec!["proto/".to_string()];
+
+        // Act: Validate with non-zero count
+        let result = validate_copied_count(1, dep_name, &dep_paths);
+
+        // Assert: Should succeed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_copied_count_with_zero_files() {
+        // Arrange: 0 files were copied
+        let dep_name = "my-dep";
+        let dep_paths = vec!["foo/".to_string()];
+
+        // Act: Validate with zero count
+        let result = validate_copied_count(0, dep_name, &dep_paths);
+
+        // Assert: Should return an error with dependency name and paths
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("my-dep"),
+            "Error should contain dependency name"
+        );
+        assert!(err_msg.contains("foo/"), "Error should contain the paths");
+    }
+
+    #[test]
+    fn test_validate_copied_count_with_multiple_paths() {
+        // Arrange: 0 files were copied with multiple paths
+        let dep_name = "my-dep";
+        let dep_paths = vec!["foo/".to_string(), "bar/".to_string()];
+
+        // Act: Validate with zero count
+        let result = validate_copied_count(0, dep_name, &dep_paths);
+
+        // Assert: Should return an error containing all paths
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("foo/"));
+        assert!(err_msg.contains("bar/"));
     }
 }
