@@ -11,5 +11,6 @@ pub mod lockfile;
 pub mod ls;
 pub mod rm;
 pub mod schema;
+pub mod self_update;
 pub mod sync;
 pub mod validate;
