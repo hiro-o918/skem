@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use skem::{init, schema};
+use skem::{change_detection, config, init, schema, sync};
+use std::fs;
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "skem")]
@@ -25,17 +27,61 @@ fn main() {
     let result = match cli.command {
         Some(Commands::Init) => init::init(),
         Some(Commands::Schema) => schema::schema(),
-        Some(Commands::Sync) | None => {
-            // デフォルトコマンドとして sync を実行
-            println!("Running sync command (stub)");
-            Ok(())
-        }
+        Some(Commands::Sync) | None => run_sync(),
     };
 
     if let Err(e) = result {
         eprintln!("Error: {e}");
         std::process::exit(1);
     }
+}
+
+fn run_sync() -> anyhow::Result<()> {
+    // Read configuration file
+    let config_path = Path::new(".skem.yaml");
+    if !config_path.exists() {
+        anyhow::bail!(
+            ".skem.yaml not found. Run 'skem init' to create a sample configuration file."
+        );
+    }
+
+    let config_content = fs::read_to_string(config_path)?;
+    let config: config::Config = serde_yaml::from_str(&config_content)?;
+
+    if config.deps.is_empty() {
+        println!("No dependencies to synchronize.");
+        return Ok(());
+    }
+
+    println!("Synchronizing {} dependencies...", config.deps.len());
+
+    // Read existing lockfile
+    let lockfile_path = Path::new(".skem.lock");
+    let lockfile = change_detection::read_lockfile(lockfile_path)?;
+
+    // Run synchronization in async context
+    let rt = tokio::runtime::Runtime::new()?;
+    let sync_results = rt.block_on(async { sync::sync_dependencies(&config).await })?;
+
+    println!(
+        "Successfully synchronized {} dependencies.",
+        sync_results.len()
+    );
+
+    // Update lockfile with new SHAs
+    let mut updated_lockfile = lockfile;
+    change_detection::update_lockfile_entries(
+        &mut updated_lockfile,
+        sync_results
+            .iter()
+            .map(|(name, sha)| (name.as_str(), sha.as_str())),
+    );
+
+    // Write updated lockfile
+    change_detection::write_lockfile(lockfile_path, &updated_lockfile)?;
+    println!("Lockfile updated: {}", lockfile_path.display());
+
+    Ok(())
 }
 
 #[cfg(test)]
