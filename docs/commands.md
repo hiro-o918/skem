@@ -20,6 +20,18 @@ skem sync
 
 Adds a new dependency to the configuration.
 
+### Interactive mode (recommended)
+
+Omit `--paths` and `--out` to enter interactive mode, which lets you browse the repository and select files:
+
+```bash
+skem add --repo https://github.com/example/api.git
+```
+
+### Full specification mode
+
+You can specify all options directly on the command line:
+
 ```bash
 skem add --repo https://github.com/example/api.git --paths proto/ --out ./vendor/api
 ```
@@ -28,14 +40,6 @@ You can also specify an optional name and revision:
 
 ```bash
 skem add --repo https://github.com/example/api.git --paths proto/ openapi/ --out ./vendor/api --name my-api --rev v2.0
-```
-
-### Interactive mode
-
-Omit `--paths` and `--out` to enter interactive mode, which lets you browse the repository and select files:
-
-```bash
-skem add --repo https://github.com/example/api.git
 ```
 
 ## `skem rm`
