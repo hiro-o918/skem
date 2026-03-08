@@ -2,7 +2,7 @@ use crate::config::{self, Config, Dependency, Lockfile};
 use crate::copy::copy_files;
 use crate::fetch::fetch_files;
 use crate::git::GitCommand;
-use crate::hooks::execute_hooks_with_env;
+use crate::hooks::{execute_hooks, execute_hooks_with_env};
 use crate::lockfile;
 use crate::validate::validate_config;
 use anyhow::Result;
@@ -111,6 +111,21 @@ pub fn sync_dependencies(
     Ok(results.into_iter().flatten().collect())
 }
 
+/// Execute post hooks after all dependencies are synced
+///
+/// # Arguments
+/// * `post_hooks` - List of shell commands to execute
+///
+/// # Returns
+/// Result that succeeds if all hooks execute successfully
+pub fn execute_post_hooks(post_hooks: &[String]) -> Result<()> {
+    if post_hooks.is_empty() {
+        return Ok(());
+    }
+    println!("Executing post hooks...");
+    execute_hooks(post_hooks)
+}
+
 /// Run the full synchronization workflow
 ///
 /// This function:
@@ -155,6 +170,9 @@ pub fn run_sync() -> Result<()> {
     lockfile::write_lockfile(lockfile_path, &updated_lockfile)?;
     println!("Lockfile updated: {}", lockfile_path.display());
 
+    // Execute post_hooks after all dependencies are synced
+    execute_post_hooks(&config.post_hooks)?;
+
     Ok(())
 }
 
@@ -178,6 +196,67 @@ mod tests {
         let synced = result.unwrap();
         let expected: Vec<(String, String, String, String)> = vec![];
         assert_eq!(synced, expected);
+    }
+
+    #[test]
+    fn test_execute_post_hooks_runs_hooks() {
+        // Arrange: post_hooks that write to a temp file
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("post_hook_output.txt");
+        let output_path_str = output_path.to_str().unwrap();
+        let post_hooks = vec![format!("echo 'post hook executed' > {output_path_str}")];
+
+        // Act: Execute post hooks
+        let result = execute_post_hooks(&post_hooks);
+
+        // Assert: Hook should have been executed
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&output_path).unwrap();
+        assert_eq!(content.trim(), "post hook executed");
+    }
+
+    #[test]
+    fn test_execute_post_hooks_empty_list() {
+        // Arrange: Empty post_hooks list
+        let post_hooks: Vec<String> = vec![];
+
+        // Act: Execute post hooks (should be a no-op)
+        let result = execute_post_hooks(&post_hooks);
+
+        // Assert: Should succeed without doing anything
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_post_hooks_fails_on_error() {
+        // Arrange: post_hook that fails
+        let post_hooks = vec!["exit 1".to_string()];
+
+        // Act: Execute post hooks
+        let result = execute_post_hooks(&post_hooks);
+
+        // Assert: Should propagate the error
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_post_hooks_runs_multiple_hooks_in_order() {
+        // Arrange: Multiple post_hooks that append to a file
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("post_hook_order.txt");
+        let output_path_str = output_path.to_str().unwrap();
+        let post_hooks = vec![
+            format!("echo 'first' > {output_path_str}"),
+            format!("echo 'second' >> {output_path_str}"),
+        ];
+
+        // Act: Execute post hooks
+        let result = execute_post_hooks(&post_hooks);
+
+        // Assert: Both hooks should have executed in order
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&output_path).unwrap();
+        assert_eq!(content.trim(), "first\nsecond");
     }
 
     #[test]
