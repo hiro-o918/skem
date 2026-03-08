@@ -32,7 +32,7 @@ pub fn execute_hooks(hooks: &[String]) -> Result<()> {
 /// # Returns
 /// Result that succeeds if the command succeeds, or fails if the command fails
 fn execute_hook(hook: &str) -> Result<()> {
-    let output = Command::new("bash")
+    let output = Command::new("sh")
         .arg("-c")
         .arg(hook)
         .output()
