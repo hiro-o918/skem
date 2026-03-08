@@ -15,8 +15,9 @@ pub struct Dependency {
     pub name: String,
     /// Git repository URL
     pub repo: String,
-    /// Branch, tag, or commit hash
-    pub rev: String,
+    /// Branch, tag, or commit hash (defaults to HEAD when omitted)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rev: Option<String>,
     /// List of paths to download
     pub paths: Vec<String>,
     /// Output directory
@@ -64,7 +65,7 @@ deps:
             deps: vec![Dependency {
                 name: "example-api".to_string(),
                 repo: "https://github.com/example/api.git".to_string(),
-                rev: "main".to_string(),
+                rev: Some("main".to_string()),
                 paths: vec!["proto/v1/".to_string()],
                 out: "./vendor/api".to_string(),
                 hooks: vec!["echo 'Files updated'".to_string()],
@@ -89,7 +90,31 @@ deps:
             deps: vec![Dependency {
                 name: "test-dep".to_string(),
                 repo: "https://github.com/test/repo.git".to_string(),
-                rev: "v1.0.0".to_string(),
+                rev: Some("v1.0.0".to_string()),
+                paths: vec!["src/".to_string()],
+                out: "./vendor/test".to_string(),
+                hooks: vec![],
+            }],
+        };
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_deserialize_without_rev() {
+        let yaml = r#"
+deps:
+  - name: test-dep
+    repo: "https://github.com/test/repo.git"
+    paths:
+      - "src/"
+    out: "./vendor/test"
+"#;
+        let config: Config = serde_yaml::from_str(yaml).unwrap();
+        let expected = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: None,
                 paths: vec!["src/".to_string()],
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
@@ -104,13 +129,32 @@ deps:
             deps: vec![Dependency {
                 name: "test-dep".to_string(),
                 repo: "https://github.com/test/repo.git".to_string(),
-                rev: "main".to_string(),
+                rev: Some("main".to_string()),
                 paths: vec!["src/".to_string()],
                 out: "./vendor".to_string(),
                 hooks: vec!["echo 'done'".to_string()],
             }],
         };
         let yaml = serde_yaml::to_string(&config).unwrap();
+        let deserialized: Config = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(deserialized, config);
+    }
+
+    #[test]
+    fn test_config_serialize_without_rev() {
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: None,
+                paths: vec!["src/".to_string()],
+                out: "./vendor".to_string(),
+                hooks: vec![],
+            }],
+        };
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        // rev field should not appear in serialized YAML
+        assert!(!yaml.contains("rev:"));
         let deserialized: Config = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(deserialized, config);
     }
@@ -185,7 +229,7 @@ deps:
                 Dependency {
                     name: "dep1".to_string(),
                     repo: "https://github.com/user1/repo1.git".to_string(),
-                    rev: "v1.0.0".to_string(),
+                    rev: Some("v1.0.0".to_string()),
                     paths: vec!["path1/".to_string()],
                     out: "./vendor/dep1".to_string(),
                     hooks: vec![],
@@ -193,7 +237,7 @@ deps:
                 Dependency {
                     name: "dep2".to_string(),
                     repo: "https://github.com/user2/repo2.git".to_string(),
-                    rev: "main".to_string(),
+                    rev: Some("main".to_string()),
                     paths: vec!["path2/".to_string(), "path3/".to_string()],
                     out: "./vendor/dep2".to_string(),
                     hooks: vec!["echo 'updated'".to_string()],

@@ -10,7 +10,7 @@ fn get_sample_config() -> Config {
             Dependency {
                 name: "proto-schemas".to_string(),
                 repo: "https://github.com/example/schemas.git".to_string(),
-                rev: "main".to_string(),
+                rev: None,
                 paths: vec!["proto/".to_string()],
                 out: "./vendor/proto".to_string(),
                 hooks: vec!["echo 'Proto files updated'".to_string()],
@@ -18,7 +18,7 @@ fn get_sample_config() -> Config {
             Dependency {
                 name: "openapi-schemas".to_string(),
                 repo: "https://github.com/example/schemas.git".to_string(),
-                rev: "main".to_string(),
+                rev: None,
                 paths: vec!["openapi/".to_string()],
                 out: "./vendor/openapi".to_string(),
                 hooks: vec![],
@@ -63,7 +63,7 @@ mod tests {
                 Dependency {
                     name: "proto-schemas".to_string(),
                     repo: "https://github.com/example/schemas.git".to_string(),
-                    rev: "main".to_string(),
+                    rev: None,
                     paths: vec!["proto/".to_string()],
                     out: "./vendor/proto".to_string(),
                     hooks: vec!["echo 'Proto files updated'".to_string()],
@@ -71,7 +71,7 @@ mod tests {
                 Dependency {
                     name: "openapi-schemas".to_string(),
                     repo: "https://github.com/example/schemas.git".to_string(),
-                    rev: "main".to_string(),
+                    rev: None,
                     paths: vec!["openapi/".to_string()],
                     out: "./vendor/openapi".to_string(),
                     hooks: vec![],

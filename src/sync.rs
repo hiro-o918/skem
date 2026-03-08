@@ -26,8 +26,9 @@ pub fn sync_single_dependency(
     dependency: &Dependency,
     current_lockfile: &Lockfile,
 ) -> Result<Option<(String, String)>> {
-    // Get latest SHA from remote
-    let sha = GitCommand::ls_remote(&dependency.repo, &dependency.rev)?;
+    // Get latest SHA from remote (default to HEAD when rev is omitted)
+    let rev = dependency.rev.as_deref().unwrap_or("HEAD");
+    let sha = GitCommand::ls_remote(&dependency.repo, rev)?;
 
     // Skip if unchanged
     if !lockfile::has_changed(&dependency.name, &sha, current_lockfile) {
