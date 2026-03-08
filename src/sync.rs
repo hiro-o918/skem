@@ -2,7 +2,7 @@ use crate::config::{self, Config, Dependency, Lockfile};
 use crate::copy::copy_files;
 use crate::fetch::fetch_files;
 use crate::git::GitCommand;
-use crate::hooks::execute_hooks;
+use crate::hooks::execute_hooks_with_env;
 use crate::lockfile;
 use crate::validate::validate_config;
 use anyhow::Result;
@@ -52,16 +52,22 @@ pub fn sync_single_dependency(
     let temp_dir = fetch_files(dependency, &sha)?;
 
     // Copy files to output directory
-    let copied_count = copy_files(
+    let copied_files = copy_files(
         temp_dir.path(),
         &dependency.paths,
         Path::new(&dependency.out),
     )?;
-    validate_copied_count(copied_count, &dependency.name, &dependency.paths)?;
+    validate_copied_count(copied_files.len(), &dependency.name, &dependency.paths)?;
 
     // Execute hooks if configured
     if !dependency.hooks.is_empty() {
-        execute_hooks(&dependency.hooks)?;
+        let synced_files_str = copied_files
+            .iter()
+            .map(|p| p.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let env_vars = vec![("SKEM_SYNCED_FILES", synced_files_str.as_str())];
+        execute_hooks_with_env(&dependency.hooks, &env_vars)?;
     }
 
     Ok(Some((
