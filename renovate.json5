@@ -4,7 +4,7 @@
     enabled: true,
   },
   extends: ["config:base"],
-  enabledManagers: ["cargo"],
+  enabledManagers: ["cargo", "github-actions"],
   automerge: false,
   packageRules: [
     {
@@ -17,6 +17,19 @@
     {
       groupName: "rust minor-major dependencies",
       matchManagers: ["cargo"],
+      matchUpdateTypes: ["minor", "major"],
+      matchPackagePatterns: ["*"],
+    },
+    {
+      groupName: "github-actions patch dependencies",
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["patch"],
+      matchPackagePatterns: ["*"],
+      automerge: true,
+    },
+    {
+      groupName: "github-actions minor-major dependencies",
+      matchManagers: ["github-actions"],
       matchUpdateTypes: ["minor", "major"],
       matchPackagePatterns: ["*"],
     },
