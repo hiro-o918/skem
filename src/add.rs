@@ -50,7 +50,10 @@ pub fn run_add(
     let mut config = if config_path.exists() {
         config::read_config(config_path)?
     } else {
-        Config { deps: vec![] }
+        Config {
+            deps: vec![],
+            post_hooks: vec![],
+        }
     };
 
     // Check for duplicate name
@@ -123,6 +126,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -152,6 +156,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -170,6 +175,7 @@ mod tests {
                 out: "./vendor/existing".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &initial_config).unwrap();
 
@@ -203,6 +209,7 @@ mod tests {
                     hooks: vec![],
                 },
             ],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -221,6 +228,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &initial_config).unwrap();
 
@@ -263,6 +271,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
 
@@ -296,6 +305,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }

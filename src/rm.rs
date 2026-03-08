@@ -72,6 +72,7 @@ mod tests {
                     hooks: vec![],
                 },
             ],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &config).unwrap();
 
@@ -87,6 +88,7 @@ mod tests {
                 out: "./vendor/dep2".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(updated, expected);
     }
@@ -106,6 +108,7 @@ mod tests {
                 out: "./vendor/dep1".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &config).unwrap();
 
@@ -156,6 +159,7 @@ mod tests {
                 out: "./vendor/dep1".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &config).unwrap();
 
@@ -180,6 +184,7 @@ mod tests {
                 out: "./vendor/dep1".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &config).unwrap();
 
@@ -187,7 +192,10 @@ mod tests {
         run_rm(&config_path, &lockfile_path, "dep1").unwrap();
 
         let updated = config::read_config(&config_path).unwrap();
-        let expected = Config { deps: vec![] };
+        let expected = Config {
+            deps: vec![],
+            post_hooks: vec![],
+        };
         assert_eq!(updated, expected);
     }
 

@@ -24,6 +24,7 @@ fn get_sample_config() -> Config {
                 hooks: vec![],
             },
         ],
+        post_hooks: vec![],
     }
 }
 
@@ -77,6 +78,7 @@ mod tests {
                     hooks: vec![],
                 },
             ],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }

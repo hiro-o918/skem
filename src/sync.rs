@@ -144,7 +144,10 @@ mod tests {
     #[test]
     fn test_sync_dependencies_empty_config() {
         // Arrange: Empty config and lockfile
-        let config = Config { deps: vec![] };
+        let config = Config {
+            deps: vec![],
+            post_hooks: vec![],
+        };
         let lockfile = Lockfile { locks: vec![] };
 
         // Act: Synchronize dependencies

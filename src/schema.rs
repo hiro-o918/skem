@@ -42,4 +42,72 @@ mod tests {
         // rev property should exist
         assert!(dep["properties"]["rev"].is_object());
     }
+
+    #[test]
+    fn test_config_deserialize_with_post_hooks() {
+        // Arrange: Config with post_hooks
+        let yaml = r#"
+deps:
+  - name: example
+    repo: "https://github.com/example/repo.git"
+    rev: "main"
+    paths:
+      - "proto/"
+    out: "./vendor"
+post_hooks:
+  - "echo 'All dependencies synced'"
+  - "cargo fmt"
+"#;
+
+        // Act: Deserialize YAML to Config
+        let config: crate::config::Config = serde_yaml::from_str(yaml).unwrap();
+
+        // Assert: Compare complete Config object
+        let expected = crate::config::Config {
+            deps: vec![crate::config::Dependency {
+                name: "example".to_string(),
+                repo: "https://github.com/example/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["proto/".to_string()],
+                out: "./vendor".to_string(),
+                hooks: vec![],
+            }],
+            post_hooks: vec![
+                "echo 'All dependencies synced'".to_string(),
+                "cargo fmt".to_string(),
+            ],
+        };
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_deserialize_without_post_hooks() {
+        // Arrange: Config without post_hooks (should default to empty array)
+        let yaml = r#"
+deps:
+  - name: example
+    repo: "https://github.com/example/repo.git"
+    rev: "main"
+    paths:
+      - "proto/"
+    out: "./vendor"
+"#;
+
+        // Act: Deserialize YAML to Config
+        let config: crate::config::Config = serde_yaml::from_str(yaml).unwrap();
+
+        // Assert: post_hooks should be empty
+        let expected = crate::config::Config {
+            deps: vec![crate::config::Dependency {
+                name: "example".to_string(),
+                repo: "https://github.com/example/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["proto/".to_string()],
+                out: "./vendor".to_string(),
+                hooks: vec![],
+            }],
+            post_hooks: vec![],
+        };
+        assert_eq!(config, expected);
+    }
 }

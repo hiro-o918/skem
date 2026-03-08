@@ -206,7 +206,10 @@ mod tests {
         let config_path = temp_dir.path().join(".skem.yaml");
         let lockfile_path = temp_dir.path().join(".skem.lock");
 
-        let config = Config { deps: vec![] };
+        let config = Config {
+            deps: vec![],
+            post_hooks: vec![],
+        };
         config::write_config(&config_path, &config).unwrap();
 
         let result = run_check(&config_path, &lockfile_path).unwrap();
