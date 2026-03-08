@@ -146,7 +146,8 @@ mod tests {
         let result = sync_dependencies(&config, &lockfile);
 
         // Assert: Should succeed with empty results
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 0);
+        let synced = result.unwrap();
+        let expected: Vec<(String, String)> = vec![];
+        assert_eq!(synced, expected);
     }
 }
