@@ -83,6 +83,61 @@ impl GitCommand {
         Ok(())
     }
 
+    /// Execute `git clone --depth 1 --filter=blob:none --no-checkout <repo> <path>`
+    ///
+    /// Clones a repository without checking out any files,
+    /// fetching only tree objects (no blobs).
+    ///
+    /// # Arguments
+    /// * `repo` - Repository URL
+    /// * `path` - Destination path
+    pub fn clone_blobless(repo: &str, path: &Path) -> Result<()> {
+        let output = Command::new("git")
+            .arg("clone")
+            .arg("--depth")
+            .arg("1")
+            .arg("--filter=blob:none")
+            .arg("--no-checkout")
+            .arg(repo)
+            .arg(path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("git clone (blobless) failed: {stderr}");
+        }
+
+        Ok(())
+    }
+
+    /// Execute `git ls-tree -r --name-only <rev>` to list files in the repository
+    ///
+    /// # Arguments
+    /// * `repo_path` - Path to the cloned repository
+    /// * `rev` - Revision to list files from
+    ///
+    /// # Returns
+    /// A list of file paths in the repository
+    pub fn ls_tree(repo_path: &Path, rev: &str) -> Result<Vec<String>> {
+        let output = Command::new("git")
+            .arg("ls-tree")
+            .arg("-r")
+            .arg("--name-only")
+            .arg(rev)
+            .current_dir(repo_path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("git ls-tree failed: {stderr}");
+        }
+
+        let stdout = String::from_utf8(output.stdout)?;
+        let paths: Vec<String> = stdout.lines().map(|l| l.to_string()).collect();
+
+        Ok(paths)
+    }
+
     /// Execute `git checkout <rev>` in the specified repository
     ///
     /// # Arguments
@@ -194,6 +249,51 @@ mod tests {
         let result = GitCommand::checkout(&repo_path, "HEAD");
 
         assert!(result.is_ok(), "checkout HEAD should succeed: {result:?}");
+    }
+
+    #[test]
+    fn test_clone_blobless_creates_git_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let clone_path = temp_dir.path().join("test_repo");
+
+        let result = GitCommand::clone_blobless(TEST_REPO, &clone_path);
+
+        assert!(result.is_ok(), "clone_blobless should succeed: {result:?}");
+        assert!(clone_path.exists(), "Cloned directory should exist");
+        assert!(
+            clone_path.join(".git").exists(),
+            ".git directory should exist"
+        );
+    }
+
+    #[test]
+    fn test_ls_tree_returns_file_paths() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo_path = temp_dir.path().join("test_repo");
+
+        GitCommand::clone_blobless(TEST_REPO, &repo_path).unwrap();
+
+        let result = GitCommand::ls_tree(&repo_path, "HEAD");
+
+        assert!(result.is_ok(), "ls_tree should succeed: {result:?}");
+        let files = result.unwrap();
+        assert!(!files.is_empty(), "Should return at least one file");
+        assert!(
+            files.iter().any(|f| f.contains("Cargo.toml")),
+            "Should contain Cargo.toml"
+        );
+    }
+
+    #[test]
+    fn test_ls_tree_invalid_rev() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo_path = temp_dir.path().join("test_repo");
+
+        GitCommand::clone_blobless(TEST_REPO, &repo_path).unwrap();
+
+        let result = GitCommand::ls_tree(&repo_path, "nonexistent-revision-xyz");
+
+        assert!(result.is_err(), "ls_tree should fail for invalid revision");
     }
 
     #[test]

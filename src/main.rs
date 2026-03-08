@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, check, config, init, ls, rm, schema, sync};
+use skem::{add, check, config, init, interactive, ls, rm, schema, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -23,12 +23,12 @@ enum Commands {
         /// Git repository URL
         #[arg(long)]
         repo: String,
-        /// Paths to download from the repository
+        /// Paths to download from the repository (omit for interactive mode)
         #[arg(long, num_args = 1..)]
-        paths: Vec<String>,
-        /// Output directory
+        paths: Option<Vec<String>>,
+        /// Output directory (omit for interactive mode)
         #[arg(long)]
-        out: String,
+        out: Option<String>,
         /// Dependency name (defaults to repository name)
         #[arg(long)]
         name: Option<String>,
@@ -60,14 +60,26 @@ fn main() {
             out,
             name,
             rev,
-        }) => add::run_add(
-            Path::new(config::CONFIG_PATH),
-            &repo,
-            paths,
-            &out,
-            name.as_deref(),
-            rev.as_deref(),
-        ),
+        }) => match (paths, out) {
+            (Some(paths), Some(out)) => add::run_add(
+                Path::new(config::CONFIG_PATH),
+                &repo,
+                paths,
+                &out,
+                name.as_deref(),
+                rev.as_deref(),
+            ),
+            (None, None) => interactive::run_interactive_add(
+                Path::new(config::CONFIG_PATH),
+                &repo,
+                rev.as_deref(),
+                name.as_deref(),
+            ),
+            _ => {
+                eprintln!("Error: --paths and --out must be specified together, or both omitted for interactive mode.");
+                std::process::exit(1);
+            }
+        },
         Some(Commands::Rm { name }) => rm::run_rm_default(&name),
         Some(Commands::Ls) => ls::run_ls_default(),
         Some(Commands::Check) => match check::run_check_default() {
@@ -163,10 +175,40 @@ mod tests {
                 rev,
             }) => {
                 assert_eq!(repo, "https://github.com/example/api.git");
-                assert_eq!(paths, vec!["proto/", "openapi/"]);
-                assert_eq!(out, "./vendor/api");
+                assert_eq!(
+                    paths,
+                    Some(vec!["proto/".to_string(), "openapi/".to_string()])
+                );
+                assert_eq!(out, Some("./vendor/api".to_string()));
                 assert_eq!(name, Some("my-api".to_string()));
                 assert_eq!(rev, Some("v2.0".to_string()));
+            }
+            _ => panic!("Expected Add command"),
+        }
+    }
+
+    #[test]
+    fn test_add_command_parsing_interactive_mode() {
+        // --paths and --out omitted for interactive mode
+        let cli = Cli::parse_from(vec![
+            "skem",
+            "add",
+            "--repo",
+            "https://github.com/example/api.git",
+        ]);
+        match cli.command {
+            Some(Commands::Add {
+                repo,
+                paths,
+                out,
+                name,
+                rev,
+            }) => {
+                assert_eq!(repo, "https://github.com/example/api.git");
+                assert_eq!(paths, None);
+                assert_eq!(out, None);
+                assert_eq!(name, None);
+                assert_eq!(rev, None);
             }
             _ => panic!("Expected Add command"),
         }
