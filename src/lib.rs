@@ -12,3 +12,4 @@ pub mod ls;
 pub mod rm;
 pub mod schema;
 pub mod sync;
+pub mod validate;

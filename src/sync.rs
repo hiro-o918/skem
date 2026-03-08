@@ -4,6 +4,7 @@ use crate::fetch::fetch_files;
 use crate::git::GitCommand;
 use crate::hooks::execute_hooks;
 use crate::lockfile;
+use crate::validate::validate_config;
 use anyhow::Result;
 use std::path::Path;
 
@@ -101,6 +102,7 @@ pub fn sync_dependencies(
 pub fn run_sync() -> Result<()> {
     let config_path = Path::new(config::CONFIG_PATH);
     let config = config::read_config(config_path)?;
+    validate_config(&config)?;
 
     if config.deps.is_empty() {
         println!("No dependencies to synchronize.");
