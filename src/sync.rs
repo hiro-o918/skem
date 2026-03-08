@@ -6,7 +6,8 @@ use crate::hooks::{execute_hooks, execute_hooks_with_env};
 use crate::lockfile;
 use crate::validate::validate_config;
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 /// Validate that copy_files copied at least one file
 ///
@@ -20,6 +21,22 @@ fn validate_copied_count(count: usize, dep_name: &str, dep_paths: &[String]) -> 
     Ok(())
 }
 
+/// Collect all files recursively from a directory
+///
+/// Returns an empty vec if the directory does not exist.
+fn collect_existing_files(out_dir: &Path) -> Result<Vec<PathBuf>> {
+    if !out_dir.exists() {
+        return Ok(vec![]);
+    }
+    let files = WalkDir::new(out_dir)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .map(|entry| entry.into_path())
+        .collect();
+    Ok(files)
+}
+
 /// Synchronize a single dependency
 ///
 /// This function:
@@ -31,19 +48,21 @@ fn validate_copied_count(count: usize, dep_name: &str, dep_paths: &[String]) -> 
 /// # Arguments
 /// * `dependency` - The dependency to synchronize
 /// * `current_lockfile` - Current lockfile to check for changes
+/// * `force` - If true, skip the SHA change check and always sync
 ///
 /// # Returns
 /// Some((name, repo, rev, sha)) if synced, None if skipped
 pub fn sync_single_dependency(
     dependency: &Dependency,
     current_lockfile: &Lockfile,
+    force: bool,
 ) -> Result<Option<(String, String, String, String)>> {
     // Get latest SHA from remote (default to HEAD when rev is omitted)
     let rev = dependency.rev.as_deref().unwrap_or("HEAD");
     let sha = GitCommand::ls_remote(&dependency.repo, rev)?;
 
-    // Skip if unchanged
-    if !lockfile::has_changed(&dependency.name, &sha, current_lockfile) {
+    // Skip if unchanged (unless force is enabled)
+    if !force && !lockfile::has_changed(&dependency.name, &sha, current_lockfile) {
         println!("  {} is up to date, skipping.", dependency.name);
         return Ok(None);
     }
@@ -86,12 +105,14 @@ pub fn sync_single_dependency(
 /// # Arguments
 /// * `config` - Configuration containing all dependencies
 /// * `current_lockfile` - Current lockfile to check for changes
+/// * `force` - If true, skip the SHA change check and always sync
 ///
 /// # Returns
 /// Vector of (name, repo, rev, sha) tuples for synchronized (changed) dependencies
 pub fn sync_dependencies(
     config: &Config,
     current_lockfile: &Lockfile,
+    force: bool,
 ) -> Result<Vec<(String, String, String, String)>> {
     let handles: Vec<_> = config
         .deps
@@ -99,7 +120,7 @@ pub fn sync_dependencies(
         .map(|dep| {
             let dep = dep.clone();
             let lf = current_lockfile.clone();
-            std::thread::spawn(move || sync_single_dependency(&dep, &lf))
+            std::thread::spawn(move || sync_single_dependency(&dep, &lf, force))
         })
         .collect();
 
@@ -126,6 +147,35 @@ pub fn execute_post_hooks(post_hooks: &[String]) -> Result<()> {
     execute_hooks(post_hooks)
 }
 
+/// Run hooks only for all dependencies without fetching files
+///
+/// Collects existing files from each dependency's output directory
+/// and executes hooks with SKEM_SYNCED_FILES set to those files.
+fn run_hooks_only(config: &Config) -> Result<()> {
+    println!("Running hooks only (skipping file sync)...");
+
+    for dep in &config.deps {
+        let out_dir = Path::new(&dep.out);
+        let existing_files = collect_existing_files(out_dir)?;
+
+        if !dep.hooks.is_empty() {
+            println!("  Running hooks for {}...", dep.name);
+            let synced_files_str = existing_files
+                .iter()
+                .map(|p| p.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let env_vars = vec![("SKEM_SYNCED_FILES", synced_files_str.as_str())];
+            execute_hooks_with_env(&dep.hooks, &env_vars)?;
+        }
+    }
+
+    execute_post_hooks(&config.post_hooks)?;
+
+    println!("Hooks execution completed.");
+    Ok(())
+}
+
 /// Run the full synchronization workflow
 ///
 /// This function:
@@ -133,7 +183,11 @@ pub fn execute_post_hooks(post_hooks: &[String]) -> Result<()> {
 /// 2. Reads the existing lockfile
 /// 3. Executes parallel synchronization of all dependencies (skipping unchanged)
 /// 4. Updates and writes the lockfile
-pub fn run_sync() -> Result<()> {
+pub fn run_sync(force: bool, hooks_only: bool) -> Result<()> {
+    if force && hooks_only {
+        anyhow::bail!("--force and --hooks-only cannot be used together");
+    }
+
     let config_path = Path::new(config::CONFIG_PATH);
     let config = config::read_config(config_path)?;
     validate_config(&config)?;
@@ -143,12 +197,16 @@ pub fn run_sync() -> Result<()> {
         return Ok(());
     }
 
+    if hooks_only {
+        return run_hooks_only(&config);
+    }
+
     println!("Synchronizing {} dependencies...", config.deps.len());
 
     let lockfile_path = Path::new(config::LOCKFILE_PATH);
     let current_lockfile = lockfile::read_lockfile(lockfile_path)?;
 
-    let sync_results = sync_dependencies(&config, &current_lockfile)?;
+    let sync_results = sync_dependencies(&config, &current_lockfile, force)?;
 
     if sync_results.is_empty() {
         println!("All dependencies are up to date.");
@@ -190,7 +248,7 @@ mod tests {
         let lockfile = Lockfile { locks: vec![] };
 
         // Act: Synchronize dependencies
-        let result = sync_dependencies(&config, &lockfile);
+        let result = sync_dependencies(&config, &lockfile, false);
 
         // Assert: Should succeed with empty results
         let synced = result.unwrap();
@@ -257,6 +315,150 @@ mod tests {
         assert!(result.is_ok());
         let content = std::fs::read_to_string(&output_path).unwrap();
         assert_eq!(content.trim(), "first\nsecond");
+    }
+
+    #[test]
+    fn test_run_hooks_only_executes_hooks_with_existing_files() {
+        // Arrange: Create temp dirs for output with files and a hook that captures env
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let out_dir = temp_dir.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        std::fs::write(out_dir.join("file1.txt"), "content1").unwrap();
+        std::fs::write(out_dir.join("file2.txt"), "content2").unwrap();
+
+        let hook_output_path = temp_dir.path().join("hook_output.txt");
+        let hook_output_str = hook_output_path.to_str().unwrap();
+
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["src/".to_string()],
+                out: out_dir.to_str().unwrap().to_string(),
+                hooks: vec![format!("echo $SKEM_SYNCED_FILES > {hook_output_str}")],
+            }],
+            post_hooks: vec![],
+        };
+
+        // Act: Run hooks only
+        let result = run_hooks_only(&config);
+
+        // Assert: Hook should have been executed with SKEM_SYNCED_FILES containing existing files
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&hook_output_path).unwrap();
+        let content = content.trim();
+        // Files should be listed in SKEM_SYNCED_FILES
+        assert!(content.contains("file1.txt"));
+        assert!(content.contains("file2.txt"));
+    }
+
+    #[test]
+    fn test_run_hooks_only_skips_deps_without_hooks() {
+        // Arrange: Config with a dependency that has no hooks
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let out_dir = temp_dir.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["src/".to_string()],
+                out: out_dir.to_str().unwrap().to_string(),
+                hooks: vec![],
+            }],
+            post_hooks: vec![],
+        };
+
+        // Act: Run hooks only (should succeed without executing any hooks)
+        let result = run_hooks_only(&config);
+
+        // Assert: Should succeed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_hooks_only_executes_post_hooks() {
+        // Arrange: Config with post_hooks
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let out_dir = temp_dir.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+
+        let post_hook_output = temp_dir.path().join("post_hook_output.txt");
+        let post_hook_output_str = post_hook_output.to_str().unwrap();
+
+        let config = Config {
+            deps: vec![Dependency {
+                name: "test-dep".to_string(),
+                repo: "https://github.com/test/repo.git".to_string(),
+                rev: Some("main".to_string()),
+                paths: vec!["src/".to_string()],
+                out: out_dir.to_str().unwrap().to_string(),
+                hooks: vec![],
+            }],
+            post_hooks: vec![format!("echo 'post hook ran' > {post_hook_output_str}")],
+        };
+
+        // Act: Run hooks only
+        let result = run_hooks_only(&config);
+
+        // Assert: Post hook should have been executed
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&post_hook_output).unwrap();
+        assert_eq!(content.trim(), "post hook ran");
+    }
+
+    #[test]
+    fn test_collect_existing_files() {
+        // Arrange: Create a temp directory with some files
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let out_dir = temp_dir.path();
+        std::fs::create_dir_all(out_dir.join("subdir")).unwrap();
+        std::fs::write(out_dir.join("file1.txt"), "content1").unwrap();
+        std::fs::write(out_dir.join("file2.txt"), "content2").unwrap();
+        std::fs::write(out_dir.join("subdir").join("file3.txt"), "content3").unwrap();
+
+        // Act: Collect existing files
+        let mut files = collect_existing_files(out_dir).unwrap();
+        files.sort();
+
+        // Assert: All files should be collected
+        let mut expected = vec![
+            out_dir.join("file1.txt"),
+            out_dir.join("file2.txt"),
+            out_dir.join("subdir").join("file3.txt"),
+        ];
+        expected.sort();
+        assert_eq!(files, expected);
+    }
+
+    #[test]
+    fn test_collect_existing_files_empty_dir() {
+        // Arrange: Create an empty temp directory
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let out_dir = temp_dir.path();
+
+        // Act: Collect existing files
+        let files = collect_existing_files(out_dir).unwrap();
+
+        // Assert: Should return empty vec
+        let expected: Vec<PathBuf> = vec![];
+        assert_eq!(files, expected);
+    }
+
+    #[test]
+    fn test_collect_existing_files_nonexistent_dir() {
+        // Arrange: Non-existent directory path
+        let out_dir = Path::new("/tmp/nonexistent_skem_test_dir_12345");
+
+        // Act: Collect existing files
+        let files = collect_existing_files(out_dir).unwrap();
+
+        // Assert: Should return empty vec
+        let expected: Vec<PathBuf> = vec![];
+        assert_eq!(files, expected);
     }
 
     #[test]

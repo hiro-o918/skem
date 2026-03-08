@@ -17,7 +17,14 @@ enum Commands {
     /// Output JSON Schema for .skem.yaml configuration
     Schema,
     /// Synchronize dependencies (default command)
-    Sync,
+    Sync {
+        /// Force re-sync even if dependencies are up to date
+        #[arg(long)]
+        force: bool,
+        /// Only re-run hooks without fetching files
+        #[arg(long)]
+        hooks_only: bool,
+    },
     /// Add a new dependency
     Add {
         /// Git repository URL
@@ -55,7 +62,7 @@ fn main() {
     let result = match cli.command {
         Commands::Init => init::init(),
         Commands::Schema => schema::schema(),
-        Commands::Sync => sync::run_sync(),
+        Commands::Sync { force, hooks_only } => sync::run_sync(force, hooks_only),
         Commands::Add {
             repo,
             paths,
@@ -131,7 +138,50 @@ mod tests {
     #[test]
     fn test_sync_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "sync"]);
-        assert!(matches!(cli.command, Commands::Sync));
+        assert!(matches!(
+            cli.command,
+            Commands::Sync {
+                force: false,
+                hooks_only: false
+            }
+        ));
+    }
+
+    #[test]
+    fn test_sync_command_parsing_with_force() {
+        let cli = Cli::parse_from(vec!["skem", "sync", "--force"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Sync {
+                force: true,
+                hooks_only: false
+            }
+        ));
+    }
+
+    #[test]
+    fn test_sync_command_parsing_with_hooks_only() {
+        let cli = Cli::parse_from(vec!["skem", "sync", "--hooks-only"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Sync {
+                force: false,
+                hooks_only: true
+            }
+        ));
+    }
+
+    #[test]
+    fn test_sync_command_parsing_with_both_flags() {
+        // Both flags can be parsed, but will error at runtime
+        let cli = Cli::parse_from(vec!["skem", "sync", "--force", "--hooks-only"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Sync {
+                force: true,
+                hooks_only: true
+            }
+        ));
     }
 
     #[test]
