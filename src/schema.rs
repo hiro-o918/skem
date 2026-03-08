@@ -27,7 +27,7 @@ mod tests {
         assert_eq!(schema["type"], "object");
 
         // Dependency definition
-        let dep = &schema["definitions"]["Dependency"];
+        let dep = &schema["$defs"]["Dependency"];
         assert_eq!(dep["type"], "object");
 
         // rev should not be in required list
