@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0](https://github.com/hiro-o918/skem/compare/v0.1.0...v0.2.0) (2026-03-08)
+
+
+### Features
+
+* Add self-update command ([#23](https://github.com/hiro-o918/skem/issues/23)) ([f07bd63](https://github.com/hiro-o918/skem/commit/f07bd632cd71a4c802638446a9a7c7b9433a2819))
+* Execute post_hooks after all dependencies are synced ([#31](https://github.com/hiro-o918/skem/issues/31)) ([07dbe0e](https://github.com/hiro-o918/skem/commit/07dbe0e4b3e44bf6a3880f1ae96882b7505f894c))
+* Pass SKEM_SYNCED_FILES env var to hooks ([#30](https://github.com/hiro-o918/skem/issues/30)) ([2b6be0a](https://github.com/hiro-o918/skem/commit/2b6be0afd8b7f27a6ad3498ac6c1e39bdbd0ac33))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate schemars to v1 ([#27](https://github.com/hiro-o918/skem/issues/27)) ([058aa23](https://github.com/hiro-o918/skem/commit/058aa239063d4a257a00a66974b35a4ed2a02071))
+* **deps:** update rust minor-major dependencies to 0.9 ([#26](https://github.com/hiro-o918/skem/issues/26)) ([4035b65](https://github.com/hiro-o918/skem/commit/4035b650d6d0caaf188a8f1214c32a56adec1223))
+* Error when copy_files matches zero files during sync ([#25](https://github.com/hiro-o918/skem/issues/25)) ([1d536c4](https://github.com/hiro-o918/skem/commit/1d536c4bb74cd2fd4bf6d808afbe98242021e618)), closes [#22](https://github.com/hiro-o918/skem/issues/22)
+
+
+### Documentation
+
+* Fix environment variable passing in install examples ([#19](https://github.com/hiro-o918/skem/issues/19)) ([3c07a45](https://github.com/hiro-o918/skem/commit/3c07a4534162544f55b86d64e973a85f4f69346c))
+
+
+### Miscellaneous
+
+* Add Renovate configuration ([#21](https://github.com/hiro-o918/skem/issues/21)) ([dba5ff9](https://github.com/hiro-o918/skem/commit/dba5ff9caf11218dfe479ef33315dbf439824dcb))
+
 ## 0.1.0 (2026-03-08)
 
 
