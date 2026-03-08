@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/hiro-o918/skem/compare/v0.3.0...v0.3.1) (2026-03-08)
+
+
+### Documentation
+
+* Prioritize interactive mode in skem add documentation ([#37](https://github.com/hiro-o918/skem/issues/37)) ([ba1b061](https://github.com/hiro-o918/skem/commit/ba1b0612c6317b96adca7af493458d2923a10087))
+
 ## [0.3.0](https://github.com/hiro-o918/skem/compare/v0.2.1...v0.3.0) (2026-03-08)
 
 
