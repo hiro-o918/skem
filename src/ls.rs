@@ -161,6 +161,7 @@ mod tests {
                     hooks: vec![],
                 },
             ],
+            post_hooks: vec![],
         };
         let lockfile = Lockfile {
             locks: vec![LockEntry {
@@ -179,7 +180,10 @@ mod tests {
 
     #[test]
     fn test_list_dependencies_empty() {
-        let config = Config { deps: vec![] };
+        let config = Config {
+            deps: vec![],
+            post_hooks: vec![],
+        };
         let lockfile = Lockfile { locks: vec![] };
 
         let lines = list_dependencies(&config, &lockfile);
@@ -191,7 +195,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join(".skem.yaml");
 
-        let config = Config { deps: vec![] };
+        let config = Config {
+            deps: vec![],
+            post_hooks: vec![],
+        };
         config::write_config(&config_path, &config).unwrap();
 
         let lockfile_path = temp_dir.path().join(".skem.lock");
@@ -224,6 +231,7 @@ mod tests {
                 out: "./vendor/api".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         config::write_config(&config_path, &config).unwrap();
 

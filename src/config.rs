@@ -9,6 +9,9 @@ use std::path::Path;
 pub struct Config {
     /// List of dependencies
     pub deps: Vec<Dependency>,
+    /// Commands to execute after all dependencies are synced
+    #[serde(default)]
+    pub post_hooks: Vec<String>,
 }
 
 /// Individual dependency definition
@@ -113,6 +116,7 @@ deps:
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -142,6 +146,7 @@ deps:
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
 
         write_config(&config_path, &config).unwrap();
@@ -165,6 +170,7 @@ deps:
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
 
         write_config(&config_path, &config).unwrap();
@@ -195,6 +201,7 @@ deps:
                 out: "./vendor/api".to_string(),
                 hooks: vec!["echo 'Files updated'".to_string()],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -220,6 +227,7 @@ deps:
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -244,6 +252,7 @@ deps:
                 out: "./vendor/test".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
@@ -259,6 +268,7 @@ deps:
                 out: "./vendor".to_string(),
                 hooks: vec!["echo 'done'".to_string()],
             }],
+            post_hooks: vec![],
         };
         let yaml = serde_yaml::to_string(&config).unwrap();
         let deserialized: Config = serde_yaml::from_str(&yaml).unwrap();
@@ -276,6 +286,7 @@ deps:
                 out: "./vendor".to_string(),
                 hooks: vec![],
             }],
+            post_hooks: vec![],
         };
         let yaml = serde_yaml::to_string(&config).unwrap();
         // rev field should not appear in serialized YAML
@@ -368,6 +379,7 @@ deps:
                     hooks: vec!["echo 'updated'".to_string()],
                 },
             ],
+            post_hooks: vec![],
         };
         assert_eq!(config, expected);
     }
