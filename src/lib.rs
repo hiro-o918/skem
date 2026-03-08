@@ -3,5 +3,6 @@ pub mod config;
 pub mod copy;
 pub mod fetch;
 pub mod git;
+pub mod hooks;
 pub mod init;
 pub mod schema;
