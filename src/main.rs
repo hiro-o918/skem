@@ -7,7 +7,7 @@ use std::path::Path;
 #[command(version, about = "A lightweight CLI tool to download specific files from remote Git repositories", long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -51,16 +51,16 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Some(Commands::Init) => init::init(),
-        Some(Commands::Schema) => schema::schema(),
-        Some(Commands::Sync) | None => sync::run_sync(),
-        Some(Commands::Add {
+        Commands::Init => init::init(),
+        Commands::Schema => schema::schema(),
+        Commands::Sync => sync::run_sync(),
+        Commands::Add {
             repo,
             paths,
             out,
             name,
             rev,
-        }) => match (paths, out) {
+        } => match (paths, out) {
             (Some(paths), Some(out)) => add::run_add(
                 Path::new(config::CONFIG_PATH),
                 &repo,
@@ -80,9 +80,9 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        Some(Commands::Rm { name }) => rm::run_rm_default(&name),
-        Some(Commands::Ls) => ls::run_ls_default(),
-        Some(Commands::Check) => match check::run_check_default() {
+        Commands::Rm { name } => rm::run_rm_default(&name),
+        Commands::Ls => ls::run_ls_default(),
+        Commands::Check => match check::run_check_default() {
             Ok(true) => Ok(()),
             Ok(false) => std::process::exit(1),
             Err(e) => Err(e),
@@ -107,31 +107,28 @@ mod tests {
     }
 
     #[test]
-    fn test_default_is_sync() {
-        // 引数なしの場合はSyncコマンドが実行されることを確認
-        let cli = Cli::parse_from(vec!["skem"]);
-        assert!(cli.command.is_none());
+    fn test_no_subcommand_shows_help() {
+        // No subcommand should result in a parse error (help displayed)
+        let result = Cli::try_parse_from(vec!["skem"]);
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_init_command_parsing() {
-        // initコマンドのパース確認
         let cli = Cli::parse_from(vec!["skem", "init"]);
-        assert!(matches!(cli.command, Some(Commands::Init)));
+        assert!(matches!(cli.command, Commands::Init));
     }
 
     #[test]
     fn test_schema_command_parsing() {
-        // schemaコマンドのパース確認
         let cli = Cli::parse_from(vec!["skem", "schema"]);
-        assert!(matches!(cli.command, Some(Commands::Schema)));
+        assert!(matches!(cli.command, Commands::Schema));
     }
 
     #[test]
     fn test_sync_command_parsing() {
-        // syncコマンドのパース確認
         let cli = Cli::parse_from(vec!["skem", "sync"]);
-        assert!(matches!(cli.command, Some(Commands::Sync)));
+        assert!(matches!(cli.command, Commands::Sync));
     }
 
     #[test]
@@ -146,7 +143,7 @@ mod tests {
             "--out",
             "./vendor/api",
         ]);
-        assert!(matches!(cli.command, Some(Commands::Add { .. })));
+        assert!(matches!(cli.command, Commands::Add { .. }));
     }
 
     #[test]
@@ -167,13 +164,13 @@ mod tests {
             "v2.0",
         ]);
         match cli.command {
-            Some(Commands::Add {
+            Commands::Add {
                 repo,
                 paths,
                 out,
                 name,
                 rev,
-            }) => {
+            } => {
                 assert_eq!(repo, "https://github.com/example/api.git");
                 assert_eq!(
                     paths,
@@ -197,13 +194,13 @@ mod tests {
             "https://github.com/example/api.git",
         ]);
         match cli.command {
-            Some(Commands::Add {
+            Commands::Add {
                 repo,
                 paths,
                 out,
                 name,
                 rev,
-            }) => {
+            } => {
                 assert_eq!(repo, "https://github.com/example/api.git");
                 assert_eq!(paths, None);
                 assert_eq!(out, None);
@@ -218,7 +215,7 @@ mod tests {
     fn test_rm_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "rm", "my-dep"]);
         match cli.command {
-            Some(Commands::Rm { name }) => {
+            Commands::Rm { name } => {
                 assert_eq!(name, "my-dep");
             }
             _ => panic!("Expected Rm command"),
@@ -228,12 +225,12 @@ mod tests {
     #[test]
     fn test_ls_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "ls"]);
-        assert!(matches!(cli.command, Some(Commands::Ls)));
+        assert!(matches!(cli.command, Commands::Ls));
     }
 
     #[test]
     fn test_check_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "check"]);
-        assert!(matches!(cli.command, Some(Commands::Check)));
+        assert!(matches!(cli.command, Commands::Check));
     }
 }
