@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, check, config, init, interactive, ls, rm, schema, sync};
+use skem::{add, check, config, init, interactive, ls, rm, schema, self_update, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -45,6 +45,8 @@ enum Commands {
     Ls,
     /// Check if any dependencies have updates available
     Check,
+    /// Update skem to the latest version
+    SelfUpdate,
 }
 
 fn main() {
@@ -87,6 +89,7 @@ fn main() {
             Ok(false) => std::process::exit(1),
             Err(e) => Err(e),
         },
+        Commands::SelfUpdate => self_update::run_self_update(),
     };
 
     if let Err(e) = result {
@@ -232,5 +235,11 @@ mod tests {
     fn test_check_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "check"]);
         assert!(matches!(cli.command, Commands::Check));
+    }
+
+    #[test]
+    fn test_self_update_command_parsing() {
+        let cli = Cli::parse_from(vec!["skem", "self-update"]);
+        assert!(matches!(cli.command, Commands::SelfUpdate));
     }
 }
