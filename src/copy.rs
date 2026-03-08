@@ -73,13 +73,13 @@ pub fn strip_path_prefix(file_path: &Path, dep_paths: &[String]) -> Option<PathB
 /// * `out_dir` - Output directory where files should be copied
 ///
 /// # Returns
-/// Number of files successfully copied
+/// List of destination paths for successfully copied files
 ///
 /// # Example
 /// Copies files matching dep_paths from source_dir to out_dir,
 /// stripping the matching prefix from the destination path.
-pub fn copy_files(source_dir: &Path, dep_paths: &[String], out_dir: &Path) -> Result<usize> {
-    let mut copied_count = 0;
+pub fn copy_files(source_dir: &Path, dep_paths: &[String], out_dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut copied_files = Vec::new();
 
     // Recursively walk through all files in source directory
     for entry in WalkDir::new(source_dir).into_iter().filter_map(|e| e.ok()) {
@@ -107,11 +107,11 @@ pub fn copy_files(source_dir: &Path, dep_paths: &[String], out_dir: &Path) -> Re
                 anyhow::anyhow!("Failed to copy file from {file_path:?} to {dest_path:?}: {e}")
             })?;
 
-            copied_count += 1;
+            copied_files.push(dest_path);
         }
     }
 
-    Ok(copied_count)
+    Ok(copied_files)
 }
 
 #[cfg(test)]
@@ -236,11 +236,13 @@ mod tests {
         let dep_paths = vec!["proto/".to_string()];
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
-        // Assert: File should be copied with stripped path
-        assert!(count.is_ok(), "copy_files should succeed");
-        assert_eq!(count.unwrap(), 1, "Should copy exactly 1 file");
+        // Assert: File should be copied with stripped path, returns copied file paths
+        assert!(result.is_ok(), "copy_files should succeed");
+        let copied_files = result.unwrap();
+        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
+        assert_eq!(copied_files[0], out_dir.path().join("user.proto"));
         assert!(
             out_dir.path().join("user.proto").exists(),
             "user.proto should be copied to output directory"
@@ -263,14 +265,15 @@ mod tests {
         let dep_paths = vec!["proto/v1/".to_string()];
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
         // Assert: File should be copied preserving structure after stripped prefix
-        assert!(count.is_ok(), "copy_files should succeed");
-        assert_eq!(count.unwrap(), 1, "Should copy exactly 1 file");
-        assert!(
-            out_dir.path().join("services/auth/user.proto").exists(),
-            "File should be copied with nested structure preserved"
+        assert!(result.is_ok(), "copy_files should succeed");
+        let copied_files = result.unwrap();
+        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
+        assert_eq!(
+            copied_files[0],
+            out_dir.path().join("services/auth/user.proto")
         );
     }
 
@@ -287,19 +290,19 @@ mod tests {
         let dep_paths = vec!["proto/".to_string()];
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
         // Assert: All files should be copied
-        assert!(count.is_ok(), "copy_files should succeed");
-        assert_eq!(count.unwrap(), 2, "Should copy exactly 2 files");
-        assert!(
-            out_dir.path().join("user.proto").exists(),
-            "user.proto should exist"
-        );
-        assert!(
-            out_dir.path().join("post.proto").exists(),
-            "post.proto should exist"
-        );
+        assert!(result.is_ok(), "copy_files should succeed");
+        let mut copied_files = result.unwrap();
+        assert_eq!(copied_files.len(), 2, "Should copy exactly 2 files");
+        copied_files.sort();
+        let mut expected = vec![
+            out_dir.path().join("post.proto"),
+            out_dir.path().join("user.proto"),
+        ];
+        expected.sort();
+        assert_eq!(copied_files, expected);
     }
 
     #[test]
@@ -314,15 +317,13 @@ mod tests {
         let dep_paths = vec!["proto/v1/".to_string()];
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
         // Assert: Parent directories should be created automatically
-        assert!(count.is_ok(), "copy_files should succeed");
-        assert_eq!(count.unwrap(), 1, "Should copy exactly 1 file");
-        assert!(
-            out_dir.path().join("a/b/c/deep.proto").exists(),
-            "File should be copied with all parent directories created"
-        );
+        assert!(result.is_ok(), "copy_files should succeed");
+        let copied_files = result.unwrap();
+        assert_eq!(copied_files.len(), 1, "Should copy exactly 1 file");
+        assert_eq!(copied_files[0], out_dir.path().join("a/b/c/deep.proto"));
     }
 
     #[test]
@@ -337,11 +338,15 @@ mod tests {
         let dep_paths = vec!["proto/".to_string()]; // Looking for proto, but only src exists
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
         // Assert: No files should be copied
-        assert!(count.is_ok(), "copy_files should succeed");
-        assert_eq!(count.unwrap(), 0, "Should copy 0 files when no matches");
+        assert!(result.is_ok(), "copy_files should succeed");
+        let copied_files = result.unwrap();
+        assert!(
+            copied_files.is_empty(),
+            "Should copy 0 files when no matches"
+        );
     }
 
     #[test]
@@ -361,22 +366,22 @@ mod tests {
         let dep_paths = vec!["proto/v1/".to_string(), "proto/v2/".to_string()];
 
         // Act: Copy files
-        let count = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
 
         // Assert: Files from both paths should be copied
-        assert!(count.is_ok(), "copy_files should succeed");
+        assert!(result.is_ok(), "copy_files should succeed");
+        let mut copied_files = result.unwrap();
         assert_eq!(
-            count.unwrap(),
+            copied_files.len(),
             2,
             "Should copy 2 files from different paths"
         );
-        assert!(
-            out_dir.path().join("user.proto").exists(),
-            "user.proto from v1 should exist"
-        );
-        assert!(
-            out_dir.path().join("post.proto").exists(),
-            "post.proto from v2 should exist"
-        );
+        copied_files.sort();
+        let mut expected = vec![
+            out_dir.path().join("post.proto"),
+            out_dir.path().join("user.proto"),
+        ];
+        expected.sort();
+        assert_eq!(copied_files, expected);
     }
 }

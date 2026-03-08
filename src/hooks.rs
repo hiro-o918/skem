@@ -18,8 +18,20 @@ use std::process::Command;
 /// assert!(result.is_ok());
 /// ```
 pub fn execute_hooks(hooks: &[String]) -> Result<()> {
+    execute_hooks_with_env(hooks, &[])
+}
+
+/// Execute hooks in sequential order with additional environment variables
+///
+/// # Arguments
+/// * `hooks` - List of shell commands to execute
+/// * `env_vars` - Environment variables to pass to hook processes
+///
+/// # Returns
+/// Result that succeeds if all hooks execute successfully, or fails if any hook fails
+pub fn execute_hooks_with_env(hooks: &[String], env_vars: &[(&str, &str)]) -> Result<()> {
     for hook in hooks {
-        execute_hook(hook)?;
+        execute_hook(hook, env_vars)?;
     }
     Ok(())
 }
@@ -28,13 +40,15 @@ pub fn execute_hooks(hooks: &[String]) -> Result<()> {
 ///
 /// # Arguments
 /// * `hook` - Shell command to execute
+/// * `env_vars` - Environment variables to pass to the hook process
 ///
 /// # Returns
 /// Result that succeeds if the command succeeds, or fails if the command fails
-fn execute_hook(hook: &str) -> Result<()> {
+fn execute_hook(hook: &str, env_vars: &[(&str, &str)]) -> Result<()> {
     let output = Command::new("sh")
         .arg("-c")
         .arg(hook)
+        .envs(env_vars.iter().copied())
         .output()
         .map_err(|e| anyhow::anyhow!("Failed to execute hook '{hook}': {e}"))?;
 
@@ -169,5 +183,65 @@ mod tests {
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("exit code"));
+    }
+
+    #[test]
+    fn test_execute_hooks_with_env_vars() {
+        // Arrange: Hook that reads environment variable and writes to a temp file
+        let temp_dir = tempfile::TempDir::new().expect("Should create temp dir");
+        let output_path = temp_dir.path().join("env_output.txt");
+        let output_path_str = output_path.to_str().unwrap();
+        let hooks = vec![format!("echo $SKEM_SYNCED_FILES > {output_path_str}")];
+        let env_vars = vec![(
+            "SKEM_SYNCED_FILES",
+            "vendor/proto/user.proto vendor/proto/post.proto",
+        )];
+
+        // Act: Execute hooks with environment variables
+        let result = execute_hooks_with_env(&hooks, &env_vars);
+
+        // Assert: Hook should have access to the environment variable
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&output_path).expect("Should read output file");
+        assert_eq!(
+            content.trim(),
+            "vendor/proto/user.proto vendor/proto/post.proto"
+        );
+    }
+
+    #[test]
+    fn test_execute_hooks_with_env_vars_empty_env() {
+        // Arrange: Hook with no environment variables
+        let hooks = vec!["echo 'test'".to_string()];
+        let env_vars: Vec<(&str, &str)> = vec![];
+
+        // Act: Execute hooks with empty env vars
+        let result = execute_hooks_with_env(&hooks, &env_vars);
+
+        // Assert: Should succeed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_hooks_with_env_vars_multiple_vars() {
+        // Arrange: Hook that reads multiple environment variables
+        let temp_dir = tempfile::TempDir::new().expect("Should create temp dir");
+        let output_path = temp_dir.path().join("env_output.txt");
+        let output_path_str = output_path.to_str().unwrap();
+        let hooks = vec![format!(
+            "echo \"$SKEM_SYNCED_FILES|$SKEM_OTHER\" > {output_path_str}"
+        )];
+        let env_vars = vec![
+            ("SKEM_SYNCED_FILES", "file1.proto file2.proto"),
+            ("SKEM_OTHER", "extra_value"),
+        ];
+
+        // Act: Execute hooks with multiple environment variables
+        let result = execute_hooks_with_env(&hooks, &env_vars);
+
+        // Assert: Hook should have access to all environment variables
+        assert!(result.is_ok());
+        let content = std::fs::read_to_string(&output_path).expect("Should read output file");
+        assert_eq!(content.trim(), "file1.proto file2.proto|extra_value");
     }
 }
