@@ -19,4 +19,5 @@ target/
 # skem specific
 plans/
 .skem.lock
+!examples/.skem.lock
 vendor/

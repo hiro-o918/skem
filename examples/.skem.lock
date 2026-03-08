@@ -1,0 +1,5 @@
+locks:
+- name: proto-schemas
+  sha: e6f5da00c99fdfc6b746a4bb4e288a0cac66135a
+- name: openapi-schemas
+  sha: e6f5da00c99fdfc6b746a4bb4e288a0cac66135a
