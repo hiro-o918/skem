@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, config, init, schema, sync};
+use skem::{add, config, init, rm, schema, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -36,6 +36,11 @@ enum Commands {
         #[arg(long)]
         rev: Option<String>,
     },
+    /// Remove a dependency
+    Rm {
+        /// Name of the dependency to remove
+        name: String,
+    },
 }
 
 fn main() {
@@ -59,6 +64,7 @@ fn main() {
             name.as_deref(),
             rev.as_deref(),
         ),
+        Some(Commands::Rm { name }) => rm::run_rm_default(&name),
     };
 
     if let Err(e) = result {
@@ -153,6 +159,17 @@ mod tests {
                 assert_eq!(rev, Some("v2.0".to_string()));
             }
             _ => panic!("Expected Add command"),
+        }
+    }
+
+    #[test]
+    fn test_rm_command_parsing() {
+        let cli = Cli::parse_from(vec!["skem", "rm", "my-dep"]);
+        match cli.command {
+            Some(Commands::Rm { name }) => {
+                assert_eq!(name, "my-dep");
+            }
+            _ => panic!("Expected Rm command"),
         }
     }
 }
