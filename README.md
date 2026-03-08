@@ -38,7 +38,10 @@ cargo install skem
 # Initialize configuration
 skem init
 
-# Add a dependency
+# Add a dependency (interactive mode — browse and select files interactively)
+skem add --repo https://github.com/example/api.git
+
+# Or specify all options directly
 skem add --repo https://github.com/example/api.git --paths proto/ --out ./vendor/api
 
 # Synchronize dependencies
