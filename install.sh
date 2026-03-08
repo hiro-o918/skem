@@ -26,20 +26,16 @@ esac
 
 TARGET="${ARCH_SUFFIX}-${OS_SUFFIX}"
 
-# Determine version (latest or specified)
+FILE_NAME="${BINARY_NAME}-${TARGET}.tar.gz"
+
+# Determine download URL (latest or specified version)
 if [ -n "$VERSION" ]; then
-  TAG="$VERSION"
+  DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${FILE_NAME}"
+  echo "Downloading $BINARY_NAME ($VERSION) for $TARGET..."
 else
-  TAG=$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-  if [ -z "$TAG" ]; then
-    echo "Error: Failed to determine latest version"
-    exit 1
-  fi
+  DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${FILE_NAME}"
+  echo "Downloading $BINARY_NAME (latest) for $TARGET..."
 fi
-
-DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${BINARY_NAME}-${TAG}-${TARGET}.tar.gz"
-
-echo "Downloading $BINARY_NAME ($TAG) for $TARGET..."
 
 # Create a temporary directory
 TMP_DIR=$(mktemp -d)
