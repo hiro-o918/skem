@@ -133,6 +133,38 @@ post_hooks:
 | `deps[].hooks` | No | Commands to run after successful synchronization |
 | `post_hooks` | No | Commands to run after all dependencies are synced |
 
+## Hooks
+
+### Per-dependency hooks
+
+Per-dependency `hooks` run after each dependency is successfully synced. The following environment variables are available:
+
+| Variable | Description |
+|----------|-------------|
+| `SKEM_SYNCED_FILES` | Space-separated list of file paths that were synced to the output directory |
+
+Example:
+
+```yaml
+deps:
+  - name: example-api
+    repo: "https://github.com/example/api.git"
+    paths:
+      - "proto/"
+    out: "./vendor/api"
+    hooks:
+      - "protoc --go_out=. $SKEM_SYNCED_FILES"
+```
+
+### Post hooks
+
+Global `post_hooks` run once after all dependencies have been synced. No additional environment variables are provided.
+
+```yaml
+post_hooks:
+  - "echo 'All dependencies synced'"
+```
+
 ## How it works
 
 1. Reads `.skem.yaml` configuration
