@@ -13,6 +13,24 @@ A lightweight CLI tool to download specific files from remote Git repositories a
 
 ## Installation
 
+### From GitHub Releases (recommended)
+
+Download the pre-built binary for your platform from the [GitHub Releases](https://github.com/hiro-o918/skem/releases) page.
+
+```bash
+# Example: Linux x86_64
+curl -L https://github.com/hiro-o918/skem/releases/latest/download/skem-<VERSION>-x86_64-unknown-linux-gnu.tar.gz | tar xz
+sudo mv skem-<VERSION>-x86_64-unknown-linux-gnu/skem /usr/local/bin/
+
+# Example: macOS Apple Silicon
+curl -L https://github.com/hiro-o918/skem/releases/latest/download/skem-<VERSION>-aarch64-apple-darwin.tar.gz | tar xz
+sudo mv skem-<VERSION>-aarch64-apple-darwin/skem /usr/local/bin/
+```
+
+Replace `<VERSION>` with the desired version tag (e.g., `v0.1.0`).
+
+### From source
+
 ```bash
 cargo install skem
 ```
