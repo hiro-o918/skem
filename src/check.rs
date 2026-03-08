@@ -1,6 +1,7 @@
 use crate::config::{self, Dependency, Lockfile};
 use crate::git::GitCommand;
 use crate::lockfile;
+use crate::validate::validate_config;
 use anyhow::Result;
 use std::path::Path;
 
@@ -55,6 +56,7 @@ pub fn check_dependency(dep: &Dependency, lockfile: &Lockfile) -> Result<CheckRe
 /// true if all dependencies are up to date, false otherwise
 pub fn run_check(config_path: &Path, lockfile_path: &Path) -> Result<bool> {
     let config = config::read_config(config_path)?;
+    validate_config(&config)?;
 
     if config.deps.is_empty() {
         println!("No dependencies to check.");
