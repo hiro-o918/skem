@@ -55,10 +55,10 @@ pub fn strip_path_prefix(file_path: &Path, dep_paths: &[String]) -> Option<PathB
             let stripped = &file_path_str[strip_start..];
 
             if !stripped.is_empty() {
-                // ディレクトリ指定の場合: stripped にサブパスが残る
+                // Directory match: remaining subpath after the prefix
                 return Some(PathBuf::from(stripped));
             } else {
-                // ファイル指定の場合: dep_path がファイル名まで含む → ファイル名を返す
+                // File match: dep_path includes the filename itself, so return the filename
                 let file_name = Path::new(normalized_dep_path).file_name()?;
                 return Some(PathBuf::from(file_name));
             }
@@ -229,6 +229,32 @@ mod tests {
     }
 
     #[test]
+    fn test_strip_path_prefix_exact_file_path() {
+        // Arrange: dep_path points directly to a file (not a directory)
+        let file_path = PathBuf::from("/tmp/repo/backend/api/openapi3.yaml");
+        let dep_paths = vec!["backend/api/openapi3.yaml".to_string()];
+
+        // Act: Strip the prefix
+        let result = strip_path_prefix(&file_path, &dep_paths);
+
+        // Assert: Should return just the filename when dep_path is an exact file path
+        assert_eq!(result, Some(PathBuf::from("openapi3.yaml")));
+    }
+
+    #[test]
+    fn test_strip_path_prefix_exact_file_path_nested() {
+        // Arrange: dep_path points directly to a deeply nested file
+        let file_path = PathBuf::from("/tmp/repo/backend/apiapp/gen/http/openapi3.yaml");
+        let dep_paths = vec!["backend/apiapp/gen/http/openapi3.yaml".to_string()];
+
+        // Act: Strip the prefix
+        let result = strip_path_prefix(&file_path, &dep_paths);
+
+        // Assert: Should return just the filename
+        assert_eq!(result, Some(PathBuf::from("openapi3.yaml")));
+    }
+
+    #[test]
     fn test_copy_files_single_file() {
         // Arrange: Create source directory with a single file
         let source_dir = TempDir::new().expect("Should create temp dir");
@@ -347,6 +373,34 @@ mod tests {
             copied_files.is_empty(),
             "Should copy 0 files when no matches"
         );
+    }
+
+    #[test]
+    fn test_copy_files_exact_file_path() {
+        // Arrange: Create source directory with a file specified by exact path in dep_paths
+        let source_dir = TempDir::new().expect("Should create temp dir");
+        let nested_dir = source_dir.path().join("backend/api");
+        fs::create_dir_all(&nested_dir).expect("Should create nested dirs");
+        fs::write(nested_dir.join("openapi3.yaml"), "openapi: 3.0.0").expect("Should write file");
+
+        let out_dir = TempDir::new().expect("Should create output dir");
+        let dep_paths = vec!["backend/api/openapi3.yaml".to_string()];
+
+        // Act: Copy files
+        let result = copy_files(source_dir.path(), &dep_paths, out_dir.path());
+
+        // Assert: File should be copied with just the filename (no path prefix)
+        assert!(result.is_ok(), "copy_files should succeed");
+        let copied_files = result.unwrap();
+        let expected = vec![out_dir.path().join("openapi3.yaml")];
+        assert_eq!(copied_files, expected);
+        assert!(
+            out_dir.path().join("openapi3.yaml").exists(),
+            "openapi3.yaml should be copied to output directory"
+        );
+        let content = fs::read_to_string(out_dir.path().join("openapi3.yaml"))
+            .expect("Should read copied file");
+        assert_eq!(content, "openapi: 3.0.0");
     }
 
     #[test]
