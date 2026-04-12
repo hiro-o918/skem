@@ -67,7 +67,7 @@ impl GitCommand {
     /// * `paths` - Paths to checkout
     pub fn sparse_checkout_set(repo_path: &Path, paths: &[String]) -> Result<()> {
         let mut cmd = Command::new("git");
-        cmd.arg("sparse-checkout").arg("set");
+        cmd.arg("sparse-checkout").arg("set").arg("--skip-checks");
 
         for path in paths {
             cmd.arg(path);

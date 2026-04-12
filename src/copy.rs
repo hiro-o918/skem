@@ -54,9 +54,13 @@ pub fn strip_path_prefix(file_path: &Path, dep_paths: &[String]) -> Option<PathB
             // Extract the remaining path
             let stripped = &file_path_str[strip_start..];
 
-            // Return the stripped path if it's not empty
             if !stripped.is_empty() {
+                // ディレクトリ指定の場合: stripped にサブパスが残る
                 return Some(PathBuf::from(stripped));
+            } else {
+                // ファイル指定の場合: dep_path がファイル名まで含む → ファイル名を返す
+                let file_name = Path::new(normalized_dep_path).file_name()?;
+                return Some(PathBuf::from(file_name));
             }
         }
     }
