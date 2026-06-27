@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/hiro-o918/skem/compare/v0.4.0...v0.4.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* configure bin_path_in_archive for self-update ([#42](https://github.com/hiro-o918/skem/issues/42)) ([8e40887](https://github.com/hiro-o918/skem/commit/8e408870ee4c5f4b63848f4a6a7cfd43de3b4c65))
+
 ## [0.4.0](https://github.com/hiro-o918/skem/compare/v0.3.1...v0.4.0) (2026-06-27)
 
 
