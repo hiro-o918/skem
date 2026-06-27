@@ -15,6 +15,7 @@ pub fn run_self_update() -> Result<()> {
         .target(target)
         .current_version(current_version)
         .identifier(&format!("{BIN_NAME}-{target}.tar.gz"))
+        .bin_path_in_archive("{{ bin }}-{{ target }}/{{ bin }}")
         .build()?
         .update()?;
 
@@ -54,6 +55,7 @@ mod tests {
             .target(target)
             .current_version(current_version)
             .identifier(&format!("{BIN_NAME}-{target}.tar.gz"))
+            .bin_path_in_archive("{{ bin }}-{{ target }}/{{ bin }}")
             .build();
 
         assert!(
