@@ -7,6 +7,7 @@ pub mod git;
 pub mod hooks;
 pub mod init;
 pub mod interactive;
+pub mod llms;
 pub mod lockfile;
 pub mod ls;
 pub mod rm;

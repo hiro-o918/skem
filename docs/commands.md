@@ -73,3 +73,12 @@ Outputs JSON Schema for `.skem.yaml` configuration file, useful for editor compl
 ```bash
 skem schema
 ```
+
+## `skem llms`
+
+Prints a self-contained English usage guide aimed at LLM agents. Pipe it into an agent's context (for example, an `AGENTS.md`-style file) so the agent can drive `skem` without needing to read this repository.
+
+```bash
+skem llms
+skem llms > AGENTS.skem.md
+```
