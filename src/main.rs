@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use skem::{add, check, config, init, interactive, ls, rm, schema, self_update, sync};
+use skem::{add, check, config, init, interactive, llms, ls, rm, schema, self_update, sync};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -54,6 +54,8 @@ enum Commands {
     Check,
     /// Update skem to the latest version
     SelfUpdate,
+    /// Print a self-contained English usage guide aimed at LLM agents
+    Llms,
 }
 
 fn main() {
@@ -97,6 +99,7 @@ fn main() {
             Err(e) => Err(e),
         },
         Commands::SelfUpdate => self_update::run_self_update(),
+        Commands::Llms => llms::run(),
     };
 
     if let Err(e) = result {
@@ -291,5 +294,11 @@ mod tests {
     fn test_self_update_command_parsing() {
         let cli = Cli::parse_from(vec!["skem", "self-update"]);
         assert!(matches!(cli.command, Commands::SelfUpdate));
+    }
+
+    #[test]
+    fn test_llms_command_parsing() {
+        let cli = Cli::parse_from(vec!["skem", "llms"]);
+        assert!(matches!(cli.command, Commands::Llms));
     }
 }
