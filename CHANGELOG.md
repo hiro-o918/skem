@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/hiro-o918/skem/compare/v0.3.1...v0.4.0) (2026-06-27)
+
+
+### Features
+
+* add `skem llms` subcommand for LLM agents ([#40](https://github.com/hiro-o918/skem/issues/40)) ([6e79d9a](https://github.com/hiro-o918/skem/commit/6e79d9a94114013265aa2cc76342c7bb8567d03a))
+
 ## [0.3.1](https://github.com/hiro-o918/skem/compare/v0.3.0...v0.3.1) (2026-04-12)
 
 
